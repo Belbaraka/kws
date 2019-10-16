@@ -15,7 +15,7 @@ from tqdm import tqdm
 from keras.utils import Sequence
 from keras.preprocessing.sequence import pad_sequences
 from random import shuffle as shuf
-
+from joblib import Parallel, delayed
 
 class DataPrep():
     
@@ -34,14 +34,14 @@ class DataPrep():
             'sox','-t','sph', sph, '-b','16','-t','wav', wav
         ]
         subprocess.check_call( command ) # Did you install sox (apt-get install sox)
-
+        
     def process_tedelium(self, category):
 
         parent_path = os.path.join(self.path2data, category)
         labels, wave_files, offsets, durs = [], [], [], []
 
         # create df to be filled with labels and ids
-        df = pd.DataFrame(columns=['filename', 'frames', 'labels'])
+        df = pd.DataFrame(columns=['filename', 'nb_frames', 'labels', 'offset', 'duration'])
         
         # read STM file list
         stm_list = glob.glob(os.path.join(parent_path,'stm', '*'))
@@ -50,20 +50,60 @@ class DataPrep():
             with open(stm, 'rt') as f:
                 records = f.readlines()
                 for record in records:
-                    field = record.split()
+                    if 'ignore_time_segment_in_scoring' in record:
+                        continue
+                    else:
+                        field = record.split()
 
-                    # wave file name
-                    wave_file = os.path.join(parent_path,'sph/%s.sph.wav' % field[0])
-                    wave_files.append(wave_file)
+                        # wave file name
+                        wave_file = os.path.join(parent_path,'sph/%s.sph.wav' % field[0])
+                        wave_files.append(wave_file)
 
-                    # label index
-                    labels.append(str2index(' '.join(field[6:])))
+                        # label index
+                        labels.append(str2index(' '.join(field[6:])))
 
-                    # start, end info
-                    start, end = float(field[3]), float(field[4])
-                    offsets.append(start)
-                    durs.append(end - start)
+                        # start, end info
+                        start, end = float(field[3]), float(field[4])
+                        offsets.append(start)
+                        durs.append(end - start)
 
+        def save_mfcc_features(df, i, wave_file, label, offset, dur):
+            try:
+                fn = "%s-%.2f" % (wave_file.split('/')[-1], offset)
+                path2feature = os.path.join(self.path2features, fn + '.npy')
+
+                # load wave file
+                if not os.path.exists( wave_file ):
+                    sph_file = wave_file.rsplit('.',1)[0]
+                    if os.path.exists( sph_file ):
+                        self.sph2wav( sph_file, wave_file )
+                    else:
+                        raise RuntimeError("Missing sph file from TedLium corpus at %s"%(sph_file))
+
+                signal, sr = librosa.load(wave_file, mono=True, sr=None, offset=offset, duration=dur)
+
+                # get mfcc feature
+                mfcc = librosa.feature.mfcc(signal, sr=sr, n_mfcc=self.n_mfcc)#, n_mels=self.n_mels, n_fft=self.frame_length, hop_length=self.hop_length)
+
+                # save result ( exclude small mfcc data to prevent ctc loss )
+                if len(label) < mfcc.shape[1] - 2:
+
+                    # save meta info
+                    df = df.append({'filename': fn, 'nb_frames' : mfcc.shape[1], 'labels' : label, 'offset' : offset, 'duration' : dur}, ignore_index=True)    
+
+                    # save mfcc
+                    np.save(path2feature, mfcc, allow_pickle=False)
+            except:
+                print(wave_file)
+        
+        print("Number of tasks to be performed : ", len(wave_files))
+        
+        Parallel(n_jobs=11, verbose=1)(delayed(save_mfcc_features)(df, i, wave_file, label, offset, dur) \
+                            for i, (wave_file, label, offset, dur) in enumerate(zip(wave_files, labels, offsets, durs)))
+        
+        df.to_pickle(os.path.join(self.path2features, self.pickle_filename))        
+
+        '''
         # save results
         for i, (wave_file, label, offset, dur) in tqdm(enumerate(zip(wave_files, labels, offsets, durs)), desc='saving results', total=len(wave_files)):
             fn = "%s-%.2f" % (wave_file.split('/')[-1], offset)
@@ -73,25 +113,26 @@ class DataPrep():
             if not os.path.exists( wave_file ):
                 sph_file = wave_file.rsplit('.',1)[0]
                 if os.path.exists( sph_file ):
-                    sph2wav( sph_file, wave_file )
+                    self.sph2wav( sph_file, wave_file )
                 else:
                     raise RuntimeError("Missing sph file from TedLium corpus at %s"%(sph_file))
 
             signal, sr = librosa.load(wave_file, mono=True, sr=None, offset=offset, duration=dur)
 
             # get mfcc feature
-            mfcc = librosa.feature.mfcc(signal, sr=sr, n_mfcc=self.n_mfcc, n_mels=self.n_mels, n_fft=self.frame_length, hop_length=self.hop_length)
+            mfcc = librosa.feature.mfcc(signal, sr=sr, n_mfcc=self.n_mfcc)#, n_mels=self.n_mels, n_fft=self.frame_length, hop_length=self.hop_length)
 
             # save result ( exclude small mfcc data to prevent ctc loss )
-            if len(label) < mfcc.shape[1]:
+            if len(label) < mfcc.shape[1] - 2:
 
                 # save meta info
-                df = df.append({'filename': fn, 'frames' : mfcc.shape[1], 'labels' : label}, ignore_index=True)    
+                df = df.append({'filename': fn, 'nb_frames' : mfcc.shape[1], 'labels' : label, 'offset' : offset, 'duration' : dur}, ignore_index=True)    
                     
                 # save mfcc
                 np.save(path2feature, mfcc, allow_pickle=False)    
         # save dataframe
-        df.to_pickle(os.path.join(self.path2features, self.pickle_filename))
+        df.to_pickle(os.path.join(self.path2features, self.pickle_filename))        
+        '''
        
     
 # DataGenerator following this tutorial: https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly.html
@@ -101,14 +142,13 @@ class DataGenerator(Sequence):
     
     Args:
         path2features (string): path to the mfcc features 
-        pickle_filename (string): filename of the pickle file containing the dataframe (filename, frames, labels)
+        pickle_filename (string): filename of the pickle file containing the dataframe (filename, nb_frames, labels, offset, duration)
         batch_size (int): size of each batch
         mfcc_features (int, default=26): how many mfcc-features to extract for each frame
         epoch_length (int, default=0): the number of batches in each epoch, if set to zero it uses all available data
         shuffle (boolean, default=True): whether to shuffle the indexes in each batch
     """
     def __init__(self, path2features, pickle_filename, batch_size=32, mfcc_features=26, epoch_length=0, shuffle=True):
-        
         self.batch_size = batch_size
         self.epoch_length = epoch_length
         self.shuffle = shuffle
@@ -117,8 +157,14 @@ class DataGenerator(Sequence):
         self.mfcc_features = mfcc_features
         
         # Initializing indexes
+        self.on_epoch_end()
+        
+    def on_epoch_end(self):
+        'Updates indexes after each epoch'
         self.indexes = np.arange(self.df.shape[0])
-
+        if self.shuffle == True:
+            np.random.shuffle(self.indexes)
+            
     def __len__(self):
         """Denotes the number of batches per epoch"""
         if (self.epoch_length == 0) | (self.epoch_length > int(np.floor(self.df.shape[0]/self.batch_size))):
@@ -140,15 +186,18 @@ class DataGenerator(Sequence):
 
         # Generate indexes of current batch
         indexes_in_batch = self.indexes[batch_index * self.batch_size:(batch_index + 1) * self.batch_size]
-
-        # Shuffle indexes within current batch if shuffle=true
-        if self.shuffle:
-            shuf(indexes_in_batch)
-
+        
         # Preprocess and pad data
         x_data, input_length = self.load_and_pad_features(indexes_in_batch)
         y_data, label_length = self.load_and_pad_labels(indexes_in_batch)
-
+        
+        #print("\nx_data shape: ", x_data.shape)
+        #print("y_data shape: ", y_data.shape)
+        #print("input_length shape: ", input_length.shape)
+        #print("label_length shape: ", label_length.shape)
+        #print("input length: ", input_length)
+        #print("label_length: ", label_length, "\n")        
+        
         inputs = {'the_input': x_data,
                   'the_labels': y_data,
                   'input_length': input_length,
@@ -157,7 +206,8 @@ class DataGenerator(Sequence):
         outputs = {'ctc': np.zeros([self.batch_size])} # dummy data for dummy loss function
 
         return inputs, outputs
-
+        
+    
     def load_and_pad_features(self, indexes_in_batch):
         """
         Loads MFCC features
@@ -169,17 +219,17 @@ class DataGenerator(Sequence):
         """
 
         # Finds longest frame in batch for padding
-        max_pad_length = self.df.loc[indexes_in_batch].frames.max()
+        max_pad_length = self.df.loc[indexes_in_batch].nb_frames.max()
         
         x_data = np.empty([0, max_pad_length, self.mfcc_features])
         len_x_seq = []
 
         # loading mfcc features and pad so every frame-sequence is equal max_x_length
         batch_size = len(indexes_in_batch)
-        for idx, i in tqdm(zip(indexes_in_batch, range(0, batch_size)), desc='loading and padding mfcc features', total=batch_size):
+        for idx, i in zip(indexes_in_batch, range(0, batch_size)):#, desc='loading and padding mfcc features', total=batch_size):
             
             mfcc_frames = np.load( os.path.join(self.path2features, self.df.loc[idx].filename + '.npy') )
-            mfcc_padded = pad_sequences(mfcc_frames, maxlen=max_pad_length, dtype='float', padding='post', truncating='post')
+            mfcc_padded = pad_sequences(mfcc_frames, maxlen=max_pad_length, dtype='float', padding='post', truncating='post', value=0.0)
             mfcc_padded = mfcc_padded.T
             
             x_data = np.insert(x_data, i, mfcc_padded, axis=0)
@@ -199,18 +249,19 @@ class DataGenerator(Sequence):
         :return: y_data: numpy array with transcripts converted to a sequence of ints and zero-padded
                  label_length: numpy array with length of each sequence before padding
         """
-        # Finds longest sequence in y for padding
-        max_y_length = max(list(map(lambda x: len(x[1].labels), self.df.loc[indexes_in_batch].iterrows() ) ) )
-        y_data = np.empty([0, max_y_length])
+        
+        # Find longest sequence in batch for padding
+        longest_seq = max(map(lambda x: len(x), self.df.labels.loc[indexes_in_batch] ))
+        y_data = np.empty([0, longest_seq])
         len_y_seq = []
 
-        # Converts to int and pads to be equal max_y_length
+        # Converts to int and pads to be equal longest_seq
         batch_size = len(indexes_in_batch)
-        for idx, i in tqdm(zip(indexes_in_batch, range(0, batch_size)), desc='loading and padding labels', total=batch_size):
-            y_int = self.df.loc[idx].labels
+        for idx, i in zip(indexes_in_batch, range(0, batch_size)):#, desc='loading and padding labels', total=batch_size):
+            y_int = self.df.loc[idx].labels.copy()
             len_y_seq.append(len(y_int))
 
-            for j in range(len(y_int), max_y_length):
+            for j in range(len(y_int), longest_seq):
                 y_int.append(0)
 
             y_data = np.insert(y_data, i, y_int, axis=0)

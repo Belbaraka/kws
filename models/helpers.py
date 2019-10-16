@@ -38,7 +38,6 @@ def str2index(str_):
             pass
     return res
 
-
 # convert index list to string
 def index2str(index_list):
     # transform label index to character
