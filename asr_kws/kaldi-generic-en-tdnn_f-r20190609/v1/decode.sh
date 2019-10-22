@@ -12,7 +12,6 @@ compute-mfcc-feats \
     scp:transcriptions/wav.scp \
     ark,scp:transcriptions/feats.ark,transcriptions/feats.scp;
 
-
 # NORMALIZED FEATURE VECTORS 
 # This is optional, and only really makes sense if you have a lot of 
 # recordings with repeat speakers
@@ -35,7 +34,6 @@ ivector-extract-online2 \
 	ark:transcriptions/spk2utt \
 	scp:transcriptions/feats.scp \
 	ark,scp:transcriptions/ivectors.1.ark,transcriptions/ivectors.1.scp;
-
 
 # TRAINED DNN-HMM + FEATURE VECTORS --> LATTICE
 nnet3-latgen-faster \
