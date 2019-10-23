@@ -3,7 +3,7 @@
 We present a keyword spotting system solely based on a state of the art ASR engine. The pretrained model used can be found [here](http://zamia-speech.org/asr/). It has been trained on ~ **1500 hours** of speech (tedlium3, librispeech, voxforge and other open source datasets) and acheives **8.84% WER**. For more details check *Zamia*'s [release post.](https://goofy.zamia.org/lm/2019/06/20/1500-Hours-160k-Words-English-Zamia-Speech-Models-Released.html) The proposed KWS solution is straightforward; 
 1. The user provides a wav file sampled at **16kHz**
 2. The ASR engine performs the speech to text decoding
-3. Finally the keywords are searched in the result.
+3. Finally the keywords are searched in the ASR's ouptut.
 
 ### How to
 - First follow the steps in the notebook `baseline.ipynb` to prepare the keywords spotting module. 
