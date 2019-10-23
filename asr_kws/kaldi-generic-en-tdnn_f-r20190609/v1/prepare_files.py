@@ -34,7 +34,7 @@ path2files = args.path2files
 path_in_docker = args.path_in_docker
 
 # list all audio files 
-filenames = [f for f in listdir(path2audio) if isfile(join(path2audio, f)) and not f.endswith('.wav')]
+filenames = [f for f in listdir(path2audio) if isfile(join(path2audio, f)) and f.endswith('.wav')]
 
 # prepare wav.scp file
 with open(join(path2files, 'wav.scp'), mode='w+') as fp:
