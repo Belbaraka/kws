@@ -48,7 +48,7 @@ def get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/dev/json'):
 
 def extract_kw(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/kw_db'):
     """
-    Aligning the keyword with the audio files, extracting and saving it as a new .wav file in path2kw_db/keyword. 
+    Aligning the keyword with the audio files, extracting and saving it as a new .wav file in path2kw_db/keyword/{speaker_name}_{i}.wav. 
     The naming convention is {speaker_name}_{i}, where i is the occurence index of the keyword in the transcription.
 
     Args:
@@ -57,7 +57,7 @@ def extract_kw(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1
     path2kw_db: path where to save the extracted keywords
     
     """ 
-    print('Extracting keyword {kw} from all  audio files'.format(kw=keyword)
+    print('Extracting keyword {kw} from all  audio files'.format(kw=keyword))
     if not os.path.exists(os.path.join(path2kw_db, keyword)):
         os.mkdir(os.path.join(path2kw_db, keyword))
         
@@ -74,9 +74,9 @@ def extract_kw(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1
                     filename = path.split('/')[-1].split('.')[0] + '_' + str(count) + '.wav'
                     wavfile.write(os.path.join(path2kw_db, keyword, filename), data=signal[start:end], rate=fs)
                     count += 1 
-                    
+     
+          
 # Build the keywords database
-
 path2jsons = get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/dev/json')
 keywords = ['people', 'because', 'vision', 'image']
 
