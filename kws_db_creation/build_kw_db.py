@@ -7,6 +7,8 @@ import json
 from scipy.io import wavfile
 from joblib import Parallel, delayed
 from tqdm import tqdm
+from collections import Counter
+import pandas as pd
 
 def get_offset(path2transcription):
     """
@@ -113,12 +115,71 @@ def extract_kw_train(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_re
                     filename = path.split('/')[-1].split('.')[0] + '-' + str(count) + '.wav'
                     wavfile.write(os.path.join(path2kw_db, keyword, filename), data=signal[start:end], rate=fs)
                     count += 1 
+
+                    
+def word_count(path2jsons, output):
+    """
+    Create a dictionary with words frequencies for either the dev, test or train set. 
     
-# Build the keywords database
+    Args:
+    path2jsons: list of json files containing the forced alignement's key informations
+    output: path where result is saved (as a json file)
+    """
+    
+    word_count = Counter({})
+    
+    for path in tqdm(path2jsons):
+        with open(path) as json_file:
+            data = json.load(json_file)
+            word_dict = dict(pd.Series(data['transcript'].split()).value_counts())
+            word_dict = {k: float(v) for k, v in word_dict.items()}
+            word_count = word_count + Counter(word_dict)
+    
+    word_count = dict(word_count)
+    with open(output, 'w') as fp:
+        json.dump(word_count, fp)
+        
+
+def overall_word_count(path2wordcounts, save_result=False):
+    """
+    Create dictionary of overall words frequencies in tedlium's first release.
+    
+    Args:
+    path2wordcounts: list with the path to the three json files with words counts of the dev, test and train set
+    save_result: bool, whether results are saved as a json file in working directory or returned
+    
+    Returns:
+    result: overall words frequencies in tedlium's first release.
+    """
+    
+    result = Counter({})
+    for path in path2wordcounts:
+        with open(path) as json_file:
+            data = json.load(json_file)
+            result = result + Counter(data)
+    
+    if save_result:
+        with open(os.path.join(os.getcwd(),'overall_word_count.json'), 'w') as fp:
+            json.dump(result, fp)
+    else:
+        return result
+
+
 path2jsons_dev = get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/dev/json')
 path2jsons_test = get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/test/json')
-path2jsons_train = get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/train/final_json')[:100]
+path2jsons_train = get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/train/final_json')
 
-keywords = ['people', 'because', 'vision', 'important', 'world', 'today']
+path2wordcounts = ['/aimlx/Datasets/TEDLIUM_release1/dev/dev_word_count.json', '/aimlx/Datasets/TEDLIUM_release1/test/test_word_count.json',
+                   '/aimlx/Datasets/TEDLIUM_release1/train/train_word_count.json']
 
-Parallel(n_jobs=11)(delayed(extract_kw_train)(keyword, path2jsons_train) for keyword in keywords)
+# Compute word frequencies for train, test and dev set
+word_count(path2jsons_dev, output=path2wordcounts[0])
+word_count(path2jsons_test, output=path2wordcounts[1])
+word_count(path2jsons_train, output=path2wordcounts[2])
+
+
+_ = overall_word_count(path2wordcounts, save_result=True)
+    
+# Build the keywords database
+#keywords = ['people', 'because', 'vision', 'important', 'world', 'today']
+#Parallel(n_jobs=11)(delayed(extract_kw_train)(keyword, path2jsons_train) for keyword in keywords)
