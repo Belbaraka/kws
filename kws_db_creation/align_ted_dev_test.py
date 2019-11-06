@@ -12,8 +12,22 @@ from joblib import Parallel, delayed
 disfluencies = set(['uh', 'um'])
 
 def write_json(transcript, audiofile, offset, duration, output,
-               nthreads=multiprocessing.cpu_count(), disfluency=False, conservative=False):
-        
+               nthreads=1, disfluency=False, conservative=False):
+    """
+    Force alignments of `audiofile` trimmed at (`offset`, `offset` + `duration`) with `transcript`. 
+    The alignment is done over all the TED talks, since for the dev and test there is no discontinuities in the transcription.
+    The results are saved in a json file inside a folder named after the TED speaker where the audio comes from (aka the name of the corresponding .sph / .wav file).
+    
+    Args:
+    transcript: string containing the transcribed text
+    audiofile: path to the .wav audiofile
+    offset: float indicating where the speaker starts talking
+    duration: float indicating the length of the talk (in seconds)
+    output: path where results are saved
+    nthreads: number of alignment threads (set to 1 if you are parallelizing this function)
+    disfluency: bool, include disfluencies (uh, um) in alignment
+    conservative: bool, conservative alignment 
+    """
     print("Processing audio file ", audiofile)
 
     resources = gentle.Resources()
@@ -31,6 +45,17 @@ def write_json(transcript, audiofile, offset, duration, output,
 
     
 def get_transcript(path2transcript):
+    """
+    Compute the offset, duration and transcript of a given transcription file.
+    
+    Args:
+    path2transcript: path to .stm transcription file
+    
+    Returns:
+    offset: float indicating where the TED speaker start his talk.
+    duration: length in seconds of the speech
+    transcript: string containing the corresponding transcription
+    """
     transcript = []
     offset = -1
     end = 0
@@ -49,8 +74,24 @@ def get_transcript(path2transcript):
     return offset, duration, transcript    
     
     
-def get_files(path='/aimlx/Datasets/TEDLIUM_release1/dev/wav'):
+def get_files(path):
+    """
+    Create 3 lists of same length;
+    - the first contains paths audiofiles
+    - the second contains the transcription of each of those audios
+    - the third the offset and duration of the TED talk in the audios
     
+    Note that 3 lists are aligned.
+
+    Args:
+    path: path to the folder containing the .wav audio files
+    
+    Returns:
+    audiofiles: list of paths to the .wav audio file. 
+    transcripts: list of the corresponding transcriptions .
+    offsets_durs: list of tuples of corresponding offset and duration for th
+    
+    """    
     audiofiles = []
     transcripts = []
     offsets_durs = []
@@ -67,8 +108,11 @@ def get_files(path='/aimlx/Datasets/TEDLIUM_release1/dev/wav'):
                 
     return audiofiles, transcripts, offsets_durs   
 
-audiofiles, transcripts, offsets_durs = get_files(path='/aimlx/Datasets/TEDLIUM_release1/dev/wav')
 
+path2dev = '/aimlx/Datasets/TEDLIUM_release1/dev/wav'
+path2test = '/aimlx/Datasets/TEDLIUM_release1/test/wav'
 
-Parallel(n_jobs=11)(delayed(write_json)(transcript, audiofile, offset=off_dur[0], duration=off_dur[1], output=audiofile.replace('wav','json'))
+audiofiles, transcripts, offsets_durs = get_files(path=path2test)
+
+Parallel(n_jobs=11, prefer="threads")(delayed(write_json)(transcript, audiofile, offset=off_dur[0], duration=off_dur[1], output=audiofile.replace('wav','json'))
                                         for transcript, audiofile, off_dur in zip(transcripts, audiofiles, offsets_durs))

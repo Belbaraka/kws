@@ -10,6 +10,7 @@ import gentle
 import copy
 import json
 from joblib import Parallel, delayed
+from tqdm import tqdm
 
 disfluencies = set(['<sil>', '{SMACK}', '{NOISE}', '{BREATH}', '{UH}', '{COUGH}', '{UM}'])
 
@@ -53,53 +54,79 @@ def write_json(transcript, audiofile, offset, duration, output,
     print("Output written to %s" % (output))
 
 
-def group_sentences(ted_speaker, offsets, path2jsons='/aimlx/Datasets/TEDLIUM_release1/train/json/'):
+def group_sentences(ted_speaker, path2jsons='/aimlx/Datasets/TEDLIUM_release1/train/json/', path2output='/aimlx/Datasets/TEDLIUM_release1/train/final_json/'):
     """
     For a given TED speaker, merge all the json files created into a single one. 
     The json file created represent the alignment of the transcript with the TED talk at the word level.
     
     Args:
     ted_speaker: folder name containing the json files
-    offsets: sorted list of offsets, representing the beginning of each sentence in the audio file of the `ted_speaker`
     path2jsons: path to the ted_speaker's folders (each containing the json files)
+    path2output: path to folder where json file are saved
 
     """
+
+    print("Merging sentences for TED talk of {ts}".format(ts=ted_speaker))
+    
+    # Compute a sorted list of offsets, representing the beginning of each sentence in the audio file of the `ted_speaker`
+    path = os.path.join(path2jsons, ted_speaker) 
+    offsets = [float(name.split('*')[1]) for name in os.listdir(path) if not name.startswith('.')]
+    offsets.sort()
+    
     grouped_json = {}
     grouped_json['transcript'] = ''
     grouped_json['words'] = {}
+    
     for offset in offsets:
-
         filename = ted_speaker + '*' + str(offset) +'*.json'
+        
         with open(os.path.join(path2jsons, ted_speaker, filename)) as json_file:
             data = json.load(json_file)
             grouped_json['transcript'] = grouped_json['transcript'] + ' ' + data['transcript']
             nb_words = len(grouped_json['words'])
+            
             for i, word in enumerate(data['words']):
                 grouped_json['words'][i + nb_words] = copy.deepcopy(data['words'][i])
+                
                 if not grouped_json['words'][i + nb_words]['case'] == 'not-found-in-audio':
                     grouped_json['words'][i + nb_words]['start'] += offset
                     grouped_json['words'][i + nb_words]['end'] += offset
+                    
         #os.remove(os.path.join(path2jsons, ted_speaker, filename))
     
-    output = os.path.join(path2jsons, ted_speaker + '.json')
+    output = os.path.join(path2output, ted_speaker + '.json')
     with open(output, 'w') as fp:
         json.dump(grouped_json, fp)
 
-    
-def group_all_sentences(path2jsons='/aimlx/Datasets/TEDLIUM_release1/train/json/'):
+        
+def get_ted_speakers(path2jsons='/aimlx/Datasets/TEDLIUM_release1/train/json/'):
     """
-    For all TED speakers, merge the json files. 
+    Fetching the name of all the TED talks 
     
     Args:
     path2jsons: path to the ted_speaker's folders (each containing the json files)
     
+    Returns:
+    ted_speakers: list of all TED talks filenames. 
+    
     """
     ted_speakers = [name for name in os.listdir(path2jsons) if not name.startswith('.') and os.path.isdir(os.path.join(path2jsons, name))]
-    for ted_speaker in ted_speakers:
-        path = os.path.join(path2jsons, ted_speaker) 
-        offsets = [float(name.split('*')[1]) for name in os.listdir(path) if not name.startswith('.')]
-        offsets.sort()
-        group_sentences(ted_speaker, offsets, path2jsons)
+    return ted_speakers
+    
+#def group_all_sentences(path2jsons='/aimlx/Datasets/TEDLIUM_release1/train/json/'):
+#    """
+#    For all TED speakers, merge the json files. 
+#    
+#    Args:
+#    path2jsons: path to the ted_speaker's folders (each containing the json files)
+#    
+#    """
+#    ted_speakers = [name for name in os.listdir(path2jsons) if not name.startswith('.') and os.path.isdir(os.path.join(path2jsons, name))]
+#    for ted_speaker in tqdm(ted_speakers):
+#        path = os.path.join(path2jsons, ted_speaker) 
+#        offsets = [float(name.split('*')[1]) for name in os.listdir(path) if not name.startswith('.')]
+#        offsets.sort()
+#        group_sentences(ted_speaker, offsets, path2jsons)
         
         
 def get_transcript(path2transcript):
@@ -165,13 +192,14 @@ def get_files(path='/aimlx/Datasets/TEDLIUM_release1/train/wav'):
                 
     return audiofiles, all_sentences   
 
-audiofiles, all_sentences = get_files(path='/aimlx/Datasets/TEDLIUM_release1/train/wav')
-print(len(audiofiles))
-print(len(all_sentences))
+#audiofiles, all_sentences = get_files(path='/aimlx/Datasets/TEDLIUM_release1/train/wav')
+#print(len(audiofiles))
+#print(len(all_sentences))
 
 #Create json files for each sentence
-Parallel(n_jobs=11, prefer="threads")(delayed(write_json)(sentence[2], audiofile, offset=sentence[0], duration=sentence[1], output=audiofile.replace('wav','json'))
-                                        for audiofile, sentence in zip(audiofiles, all_sentences))
+#Parallel(n_jobs=11, prefer="threads")(delayed(write_json)(sentence[2], audiofile, offset=sentence[0], duration=sentence[1], output=audiofile.replace('wav','json'))
+#                                        for audiofile, sentence in zip(audiofiles, all_sentences))
 
 #Merge json files for each TED talk
-#group_all_sentences()
+ted_speakers = get_ted_speakers()
+Parallel(n_jobs=11, prefer="threads")(delayed(group_sentences)(ted_speaker) for ted_speaker in ted_speakers)
