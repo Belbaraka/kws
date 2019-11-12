@@ -48,7 +48,7 @@ def get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/dev/json'):
                 
     return path2jsons
 
-def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/kw_db'):
+def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/idiap_kw_db'):
     """
     Aligning the keyword with the audio files, extracting and saving it as a new .wav file in path2kw_db/keyword/{speaker_name}-{i}.wav. 
     The naming convention is {speaker_name}-{i}, where i is the occurence index of the keyword in the transcription.
@@ -60,9 +60,15 @@ def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM
     path2kw_db: path where to save the extracted keywords
     
     """ 
-    print('Extracting keyword {kw} from all  audio files'.format(kw=keyword))
-    if not os.path.exists(os.path.join(path2kw_db, keyword)):
-        os.mkdir(os.path.join(path2kw_db, keyword))
+    print('Extracting keyword {kw} from dev and test audio files'.format(kw=keyword))
+    
+    if not os.path.exists(os.path.join(path2kw_db, keyword[0])):
+        os.mkdir(os.path.join(path2kw_db, keyword[0]))    
+
+    path2wav = os.path.join(path2kw_db, keyword[0], keyword)
+        
+    if not os.path.exists(os.path.join(path2wav)):
+        os.mkdir(os.path.join(path2wav))
         
     for path in path2jsons:
         with open(path) as json_file:
@@ -74,13 +80,11 @@ def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM
                     offset = get_offset(path2transcription=path.replace('json', 'stm'))
                     fs, signal = wavfile.read(path.replace('json', 'wav'))
                     start, end = int(fs * (start + offset)), int(fs * (end + offset))
-                    filename = path.split('/')[-1].split('.')[0] + '-' + str(count) + '.wav'
-                    wavfile.write(os.path.join(path2kw_db, keyword, filename), data=signal[start:end], rate=fs)
+                    filename = path.split('/')[-1].split('.')[0] + '_' + str(count) + '.wav'
+                    wavfile.write(os.path.join(path2wav, filename), data=signal[start:end], rate=fs)
                     count += 1 
-
-
                     
-def extract_kw_train(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/kw_db'):
+def extract_kw_train(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/idiap_kw_db'):
     """
     This function is designed for the train set of TEDLIUM.
 
@@ -93,11 +97,16 @@ def extract_kw_train(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_re
     path2kw_db: path where to save the extracted keywords
     
     """ 
-    print('Extracting keyword {kw} from all  audio files'.format(kw=keyword))
+    print('Extracting keyword {kw} from train audio files'.format(kw=keyword))
     
-    if not os.path.exists(os.path.join(path2kw_db, keyword)):
-        os.mkdir(os.path.join(path2kw_db, keyword))
-        
+    if not os.path.exists(os.path.join(path2kw_db, keyword[0])):
+        os.mkdir(os.path.join(path2kw_db, keyword[0]))
+     
+    path2wav = os.path.join(path2kw_db, keyword[0], keyword)
+
+    if not os.path.exists(os.path.join(path2wav)):
+        os.mkdir(os.path.join(path2wav))
+    
     for path in tqdm(path2jsons):
         with open(path) as json_file:
             data = json.load(json_file)
@@ -112,8 +121,8 @@ def extract_kw_train(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_re
                     fs, signal = wavfile.read(path)
                     
                     start, end = int(fs * start), int(fs * end)
-                    filename = path.split('/')[-1].split('.')[0] + '-' + str(count) + '.wav'
-                    wavfile.write(os.path.join(path2kw_db, keyword, filename), data=signal[start:end], rate=fs)
+                    filename = path.split('/')[-1].split('.')[0] + '_' + str(count) + '.wav'
+                    wavfile.write(os.path.join(path2wav, filename), data=signal[start:end], rate=fs)
                     count += 1 
 
                     
@@ -173,13 +182,30 @@ path2wordcounts = ['/aimlx/Datasets/TEDLIUM_release1/dev/dev_word_count.json', '
                    '/aimlx/Datasets/TEDLIUM_release1/train/train_word_count.json']
 
 # Compute word frequencies for train, test and dev set
-word_count(path2jsons_dev, output=path2wordcounts[0])
-word_count(path2jsons_test, output=path2wordcounts[1])
-word_count(path2jsons_train, output=path2wordcounts[2])
+
+#word_count(path2jsons_dev, output=path2wordcounts[0])
+#word_count(path2jsons_test, output=path2wordcounts[1])
+#word_count(path2jsons_train, output=path2wordcounts[2])
 
 
-_ = overall_word_count(path2wordcounts, save_result=True)
+#_ = overall_word_count(path2wordcounts, save_result=True)
     
 # Build the keywords database
-#keywords = ['people', 'because', 'vision', 'important', 'world', 'today']
-#Parallel(n_jobs=11)(delayed(extract_kw_train)(keyword, path2jsons_train) for keyword in keywords)
+keywords = ['people', 'something', 'little', 'hundred', 'important', 'problem', 'million', 
+           'technology', 'africa', 'science', 'community', 'government', 'challenge', 'major', 
+           'organization', 'london', 'washington', 'japanese', 'nigeria', 'england', 'germany',
+           'ingredients', 'rose', 'benjamin', 'kevin']
+
+non_keywords = ['outside', 'difference', 'innovation', 'scientific', 'becomes', 'carbon', 'solar', 
+                'serious', 'especially', 'collaboration', 'correct', 'improvement', 'integrated', 
+                'bottles', 'everyone', 'compassionate', 'smoke', 'bones', 'whales', 'radiation']
+
+
+most_common_words = []
+with open('1000-midlong', 'r') as thousend_words:
+    for word in thousend_words:
+        most_common_words.append(word.strip())
+
+Parallel(n_jobs=12)(delayed(extract_kw_train)(keyword, path2jsons_train) for keyword in most_common_words)
+Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_dev) for keyword in most_common_words)
+Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_test) for keyword in most_common_words)
