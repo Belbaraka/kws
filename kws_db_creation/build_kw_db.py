@@ -11,6 +11,7 @@ from collections import Counter
 import pandas as pd
 import random
 
+
 def get_offset(path2transcription):
     """
     Get the moment in the audio file where the TED speaker starts talking
@@ -49,7 +50,7 @@ def get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/dev/json'):
                 
     return path2jsons
 
-def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/initial_eval_set', pad2one_sec=True, n_windows=5):
+def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/initial_eval_set', pad2one_sec=True):
     """
     Aligning the keyword with the audio files, extracting and saving it as a new .wav file in path2kw_db/keyword/{speaker_name}_{i}.wav. 
     The naming convention is {speaker_name}_{i}, where i is the occurence index of the keyword in the transcription.
@@ -60,11 +61,10 @@ def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM
     path2jsons: list of json files containing the forced alignement's key informations
     path2kw_db: path where to save the extracted keywords
     pad2one_sec: pad keywords with actual speech to have 1 second length
-    n_windows: number of 1 second windows (that contains the keyword) to extract 
     
     """ 
     print('Extracting keyword {kw} from dev and test audio files'.format(kw=keyword))
-    
+
     if not os.path.exists(os.path.join(path2kw_db, keyword[0])):
         os.mkdir(os.path.join(path2kw_db, keyword[0]))    
 
@@ -73,19 +73,19 @@ def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM
     if not os.path.exists(os.path.join(path2wav)):
         os.mkdir(os.path.join(path2wav))
         
-    for path in path2jsons:
+    for path in tqdm(path2jsons):
         with open(path) as json_file:
             data = json.load(json_file)
             count = 0
             for word in data['words']:
                 if word['word'] == keyword and word['case'] == 'success':
                     start, end = word['start'], word['end']
-                    offset = get_offset(path2transcription=path.replace('json', 'stm'))
-                    fs, signal = wavfile.read(path.replace('json', 'wav'))
+                    offset = get_offset(path2transcription=path.replace('.json', '.stm').replace('final_json', 'stm'))
+                    fs, signal = wavfile.read(path.replace('.json', '.wav').replace('final_json', 'wav'))
                     
                     if pad2one_sec:
-                        for i in range(n_windows):
-                            start_w, end_w = extract_one_second_kw(start+offset, end+offset, fs)
+                        for i, spot in enumerate(['beg', 'mid', 'end']):
+                            start_w, end_w = extract_one_second_kw(start+offset, end+offset, fs, kw_spot=spot)
                             end_w = min(end_w, len(signal))
                             filename = path.split('/')[-1].split('.')[0] + '_' + str(count) + '*' + str(i) + '.wav'
                             wavfile.write(os.path.join(path2wav, filename), data=signal[start_w:end_w], rate=fs)
@@ -95,7 +95,7 @@ def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM
                         wavfile.write(os.path.join(path2wav, filename), data=signal[start:end], rate=fs)
                     count += 1 
                     
-def extract_kw_train(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/initial_eval_set', pad2one_sec=True, n_windows=5):
+def extract_kw_train(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/initial_eval_set', pad2one_sec=True):
     """
     This function is designed for the train set of TEDLIUM.
 
@@ -107,7 +107,6 @@ def extract_kw_train(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_re
     path2jsons: list of json files containing the forced alignement's key informations
     path2kw_db: path where to save the extracted keywords
     pad2one_sec: pad keywords with actual speech to have 1 second length
-    n_windows: number of 1 second windows (that contains the keyword) to extract 
     
     """ 
     print('Extracting keyword {kw} from train audio files'.format(kw=keyword))
@@ -134,8 +133,8 @@ def extract_kw_train(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_re
                     fs, signal = wavfile.read(path)
                     
                     if pad2one_sec:
-                        for i in range(n_windows):
-                            start_w, end_w = extract_one_second_kw(start, end, fs)
+                        for i, spot in enumerate(['beg', 'mid', 'end']):
+                            start_w, end_w = extract_one_second_kw(start, end, fs, kw_spot=spot)
                             end_w = min(end_w, len(signal))
                             filename = path.split('/')[-1].split('.')[0] + '_' + str(count) + '*' + str(i) + '.wav'
                             wavfile.write(os.path.join(path2wav, filename), data=signal[start_w:end_w], rate=fs)
@@ -194,19 +193,32 @@ def overall_word_count(path2wordcounts, save_result=False):
         return result
 
 
-def extract_one_second_kw(start, end, fs):
+def extract_one_second_kw(start, end, fs, kw_spot='mid'):
     kw_dur = end - start
     if kw_dur > 1.0:
         end = start + 1.0
     else:
         speech_dur = 1.0 - kw_dur 
-        rnd = random.uniform(0,speech_dur)
-        start = start - rnd
-        end = end + (speech_dur - rnd)
+        if kw_spot == 'beg':
+            rnd = random.uniform(0, 0.25*speech_dur)
+            start = start - rnd
+            end = end + (speech_dur - rnd)            
+        elif kw_spot == 'mid':
+            rnd = random.uniform(speech_dur*0.25, speech_dur*0.75)
+            start = start - rnd
+            end = end + (speech_dur - rnd)            
+        elif kw_spot == 'end':
+            rnd = random.uniform(speech_dur*0.75, speech_dur)
+            start = start - rnd
+            end = end + (speech_dur - rnd)            
+        else:
+            rnd = random.uniform(0,speech_dur)
+            start = start - rnd
+            end = end + (speech_dur - rnd)            
     return int(fs * start), int(fs * end)
-    
-path2jsons_dev = get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/dev/json')
-path2jsons_test = get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/test/json')
+
+path2jsons_dev = get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/dev/final_json')
+path2jsons_test = get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/test/final_json')
 path2jsons_train = get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/train/final_json')
 
 path2wordcounts = ['/aimlx/Datasets/TEDLIUM_release1/dev/dev_word_count.json', '/aimlx/Datasets/TEDLIUM_release1/test/test_word_count.json',
@@ -221,25 +233,29 @@ path2wordcounts = ['/aimlx/Datasets/TEDLIUM_release1/dev/dev_word_count.json', '
 
 #_ = overall_word_count(path2wordcounts, save_result=True)
     
-# Build the keywords database
-keywords = ['people', 'something', 'little', 'hundred', 'important', 'problem', 'million', 
-           'technology', 'africa', 'science', 'community', 'government', 'challenge', 'major', 
-           'organization', 'london', 'washington', 'japanese', 'nigeria', 'england', 'germany',
-           'ingredients', 'rose', 'benjamin', 'kevin']
+#keywords = ['people', 'something', 'little', 'hundred', 'important', 'problem', 'million', 
+#           'technology', 'africa', 'science', 'community', 'government', 'challenge', 'major', 
+#           'organization', 'london', 'washington', 'japanese', 'nigeria', 'england', 'germany',
+#           'ingredients', 'rose', 'benjamin', 'kevin']
 
 non_keywords = ['outside', 'difference', 'innovation', 'scientific', 'becomes', 'carbon', 'solar', 
                 'serious', 'especially', 'collaboration', 'correct', 'improvement', 'integrated', 
                 'bottles', 'everyone', 'compassionate', 'smoke', 'bones', 'whales', 'radiation']
 
+keywords = ['people', 'because', 'think', 'world', 'more', 'percent', 
+            'today', 'last', 'another', 'change', 'should', 'sort', 
+            'find', 'after', 'fact']
 
-most_common_words = []
-with open('1000-midlong', 'r') as thousend_words:
-    for word in thousend_words:
-        most_common_words.append(word.strip())
+
+#most_common_words = []
+#with open('1000-midlong', 'r') as thousend_words:
+#    for word in thousend_words:
+#        most_common_words.append(word.strip())
+
 
 Parallel(n_jobs=12)(delayed(extract_kw_train)(keyword, path2jsons_train) 
-                    for keyword in ['percent', 'world', 'today', 'people', 'last', 'another', 'change', 'should', 'sort', 'find', 'after', 'fact'])
+                    for keyword in keywords)
 Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_dev) 
-                    for keyword in ['percent', 'world', 'today', 'people', 'last', 'another', 'change', 'should', 'sort', 'find', 'after', 'fact'])
+                    for keyword in keywords)
 Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_test) 
-                    for keyword in ['percent', 'world', 'today', 'people', 'last', 'another', 'change', 'should', 'sort', 'find', 'after', 'fact'])
+                    for keyword in keywords)
