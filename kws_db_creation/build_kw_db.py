@@ -50,7 +50,7 @@ def get_jsons(path='/aimlx/Datasets/TEDLIUM_release1/dev/json'):
                 
     return path2jsons
 
-def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/initial_eval_set', pad2one_sec=True):
+def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/eval_set', pad2one_sec=True):
     """
     Aligning the keyword with the audio files, extracting and saving it as a new .wav file in path2kw_db/keyword/{speaker_name}_{i}.wav. 
     The naming convention is {speaker_name}_{i}, where i is the occurence index of the keyword in the transcription.
@@ -95,7 +95,7 @@ def extract_kw_dev_test(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM
                         wavfile.write(os.path.join(path2wav, filename), data=signal[start:end], rate=fs)
                     count += 1 
                     
-def extract_kw_train(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/initial_eval_set', pad2one_sec=True):
+def extract_kw_train(keyword, path2jsons, path2kw_db='/aimlx/Datasets/TEDLIUM_release1/eval_set', pad2one_sec=True):
     """
     This function is designed for the train set of TEDLIUM.
 
@@ -247,15 +247,15 @@ keywords = ['people', 'because', 'think', 'world', 'more', 'percent',
             'find', 'after', 'fact']
 
 
-#most_common_words = []
-#with open('1000-midlong', 'r') as thousend_words:
-#    for word in thousend_words:
-#        most_common_words.append(word.strip())
+most_common_words = []
+with open('1000-midlong', 'r') as thousend_words:
+    for word in thousend_words:
+        most_common_words.append(word.strip())
 
 
 Parallel(n_jobs=12)(delayed(extract_kw_train)(keyword, path2jsons_train) 
-                    for keyword in keywords)
+                    for keyword in most_common_words)
 Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_dev) 
-                    for keyword in keywords)
+                    for keyword in most_common_words)
 Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_test) 
-                    for keyword in keywords)
+                    for keyword in most_common_words)
