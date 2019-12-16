@@ -1,4 +1,4 @@
-import os, sys, re
+import os
 import numpy as np
 import json
 from python_speech_features import mfcc
@@ -7,16 +7,16 @@ import scipy.io.wavfile as wav
 
 def generate_windows(signal, fs, window_dur=1.0, shift=0.3):
     """
-    TODO : add description
+    Slices up signal into consecutive, overlapping windows of duration `window_dur` and shifted by `shift`.
 
     Args:
-    signal: 
-    fs:
-    window_dur:
-    shift:
+    signal: signal over which overlapping windows will be extracted
+    fs: sampling frequency
+    window_dur: window/frame duration (in seconds)
+    shift: amount (in seconds) by which windows are shifted
     
     Returns:
-    List, paths to json files.
+    List of the windows extracted from the signal.
     """ 
     windows = []
     window_size = int(window_dur * fs)
@@ -37,15 +37,18 @@ def generate_windows(signal, fs, window_dur=1.0, shift=0.3):
 
 def compute_mfcc_frames(signal, fs, xdim, shift=0.3, num_features=40):
     """
-    TODO : add description
+    Compute MFCC features over overlapping windows extracted from the signal.
 
     Args:
-    signal: 
-    fs:
-    num_features:
+    signal: signal over which window will be extracted and features computed
+    fs: sampling frequency
+    xdim: row dimension of the feature matrix
+    shift: amount (in seconds) by which windows are shifted
+    num_features: number of MFCCs (column dimension of feature matrix)
     
     Returns:
-    List, paths to json files.
+    Numpy array of shape (number_of_frames_extracted, xdim, num_features, 1),
+    where the features extracted from the signal are stacked together.
     """     
     windows = generate_windows(signal, fs=fs, shift=shift)
     frames = []
@@ -60,13 +63,13 @@ def compute_mfcc_frames(signal, fs, xdim, shift=0.3, num_features=40):
 
 def create_file(path2dataset='/aimlx/Datasets/TEDLIUM_release1/'):
     """
-    TODO : add description
+    Loads all the paths to every .wav TED talk in the dataset.
 
     Args:
-    path2dataset
+    path2dataset: path to dataset of TED talks
     
     Returns:
-    List, paths to json files.
+    file_partition: list which contains the path to all .wav TED talks.
     """      
     file_partition = []
     
@@ -85,28 +88,28 @@ def create_file(path2dataset='/aimlx/Datasets/TEDLIUM_release1/'):
         for file in files:
             file_partition.append(('train', os.path.join(current_path,file)))                
 
-    #pickle.dump(file_partition, fp)
     return file_partition
 
 
 
-def produce_groundTruth_labels(sentence, label_kw, label_non_kw, start_kw, end_kw, fs=16000, window_dur=1.0, shift=0.1, percentage_kw=0.8):
+def produce_groundTruth_labels(sentence, kw_label, non_kw_label, start_kw, end_kw, fs=16000, window_dur=1.0, shift=0.1, percentage_kw=0.8):
     """
-    TODO : add description
+    Given a short signal (aka a sentence) extract overlapping windows and assign a label to each one of them (`kw_label` or `non_kw_label`). 
+    The sentence should only contain one occurence of the keyword associated to `kw_label` and non keywords.
 
     Args:
-    sentence:
-    label_kw:
-    label_non_kw:
-    start_kw:
-    end_kw:
-    fs:
-    window_dur:
-    shift:
-    percentage_kw:
+    sentence: short signal which contain a unique occurence of a keyword
+    kw_label: label associated to the keyword in sentence
+    non_kw_label: non keyword label
+    start_kw: start of the keyword in sentence (in seconds)
+    end_kw: end of the keyword in sentence (in seconds)
+    fs: sampling frequency (Hz)
+    window_dur: window/frame duration (in seconds)
+    shift: amount (in seconds) by which windows are shifted
+    percentage_kw: threshold percentage of keyword to be present in the window/frame to assign it the keyword label.  
     
     Returns:
-    List, paths to json files.
+    Numpy array of labels associated to the windows extracted from sentence.
     """      
     
     gt_labels = []    
@@ -119,29 +122,29 @@ def produce_groundTruth_labels(sentence, label_kw, label_non_kw, start_kw, end_k
     while not end_sentence:
         if current_index + window_size < signal_duration:
             if (current_index + window_size < start_kw * fs) or (current_index > end_kw * fs):
-                gt_labels.append(label_non_kw)
+                gt_labels.append(non_kw_label)
             else:
                 beg_kw_window = max(current_index, int(start_kw * fs))
                 end_kw_window = min(current_index + window_size, int(end_kw * fs))
                 kw_samples_in_window = end_kw_window - beg_kw_window
                 
                 if kw_samples_in_window / nb_samples_kw < percentage_kw:
-                    gt_labels.append(label_non_kw)
+                    gt_labels.append(non_kw_label)
                 else:
-                    gt_labels.append(label_kw)
+                    gt_labels.append(kw_label)
             current_index += int(shift * fs)
         else:
             if int(end_kw * fs) < signal_duration - window_size:
-                gt_labels.append(label_non_kw)
+                gt_labels.append(non_kw_label)
             elif int(start_kw * fs) > signal_duration - window_size:
-                gt_labels.append(label_kw)
+                gt_labels.append(kw_label)
             else:
                 kw_samples_in_window = int(end_kw * fs) - (signal_duration - window_size) 
                 
                 if kw_samples_in_window / nb_samples_kw < percentage_kw:
-                    gt_labels.append(label_non_kw)
+                    gt_labels.append(non_kw_label)
                 else:
-                    gt_labels.append(label_kw)                
+                    gt_labels.append(kw_label)                
                 
             end_sentence = True
             
@@ -151,21 +154,22 @@ def produce_groundTruth_labels(sentence, label_kw, label_non_kw, start_kw, end_k
 
 def extract_sentence(path2wav_file, path2dataset, file_partition, keywords, duration=5, shift=0.1, percentage_kw=1.0):
     """
-    TODO : add description
+    Extracts a small speech segment around the keyword sample present in the .wav file `path2wav_file`.
+    Apply also the function `produce_groundTruth_labels()` on it.
 
     Args:
-    path2wav_file:
-    path2dataset:
-    file_partition:
-    keywords:
-    duration:
-    shift:
-    percentage_kw:
+    path2wav_file: path the .wav keyword sample
+    path2dataset: path to dataset of the TED talks
+    file_partition: list which contains the path to all .wav TED talks.
+    keywords: list of keywords on which the models were trained on
+    duration: duration of the speech segment to be extracted (in seconds)
+    shift: amount (in seconds) by which windows are shifted
+    percentage_kw: threshold percentage of keyword to be present in the window/frame to assign it the keyword label.  
     
     Returns:
-    fs:
-    sentence:
-    y_test:
+    fs: sampling frequency (Hz)
+    sentence: speech segment extracted
+    y_test: numpy array of labels associated to the windows extracted from sentence
     """      
     
     filename = path2wav_file.split('/')[-1]
@@ -211,16 +215,16 @@ def extract_sentence(path2wav_file, path2dataset, file_partition, keywords, dura
 
 def generate_windows_indexes(signal_duration, fs, window_dur=1.0, shift=0.3):
     """
-    TODO : add description
-
+    Get the indices of overlapping windows over a signal of length `signal_duration`
+    
     Args:
-    signal_duration:
-    fs:
-    window_dur:
-    shift:
+    signal_duration: length of signal in terms of sample (i.e len(signal))
+    fs: sampling frequency (Hz)
+    window_dur: window/frame duration (in seconds)
+    shift: amount (in seconds) by which windows are shifted
     
     Returns:
-    windows_indexes:
+    windows_indexes: list of tuples (start, end) of overlapping window indexes
     """       
     windows_indexes = []
     window_size = int(window_dur * fs)
@@ -261,16 +265,16 @@ def get_offset(path2transcription):
 
 def extract_keyword_occurences(path2json_TED_talk, keyword, fs, is_from_train=False):
     """
-    TODO : add description
-
+    Given a TED talk, extract all the occurences of a given keyword. 
+    
     Args:
-    path2json_TED_talk:
-    keyword:
-    fs:
-    is_from_train:
+    path2json_TED_talk: path to the json file which contains the aligned transcript of the TED talk
+    keyword: keyword to look for
+    fs: sampling frequency (Hz)
+    is_from_train: bool, is the TED talk from the train set (json file are constructed slightly differently)
     
     Returns:
-    keyword_occurences:
+    keyword_occurences: list of occurences (start, end) of the keyword in the TED talk. 
     
     """       
     keyword_occurences = []
@@ -295,16 +299,17 @@ def extract_keyword_occurences(path2json_TED_talk, keyword, fs, is_from_train=Fa
 
 def pre_gt_vector(windows_indexes, keyword_occurences, non_kw_label, kw_label):
     """
-    TODO : add description
-
+    Computes a vector of labels; for each tuple (start_window, end_window) in `windows_indexes` if there exists a keyword occurence during that window, 
+    assign to it `kw_label`, otherwise assign the non keyword label.
+    
     Args:
-    windows_indexes:
-    keyword_occurences:
-    non_kw_label:
-    kw_label:
+    windows_indexes: list of tuples (start_window, end_window) of overlapping window indexes
+    keyword_occurences: list of occurences (start_kw, end_kw) of the keyword with label kw_label
+    kw_label: label associated to the keyword in sentence
+    non_kw_label: non keyword label
     
     Returns:
-    kw_gt_vector:
+    kw_gt_vector: list of labels; eg. if kw_gt_vector[i] = kw_label this means that the window at windows_indexes[i], contains at least one occurence of the keyword.
     
     """       
     kw_gt_vector = [non_kw_label] * len(windows_indexes)
@@ -320,16 +325,20 @@ def pre_gt_vector(windows_indexes, keyword_occurences, non_kw_label, kw_label):
 
 def merge_gt_vectors(gt_vector1, gt_vector2, non_kw_label, undefined_label=-1):
     """
-    TODO : add description
+    Given 2 vectors returned by the function `pre_gt_vector()` merge both of them element-wise following these rules:
+    - non_keyword_label + non_keyword_label -> non_keyword_label
+    - non_keyword_label + (any) keyword_label -> keyword_label
+    - keyword_label + (different) keyword_label -> undefined_label
+    - keyword_label + (same) keyword_label -> keyword_label
 
     Args:
-    gt_vector1:
-    gt_vector2:
-    non_kw_label:
-    undefined_label:
+    gt_vector1: vector returned by function `pre_gt_vector()`
+    gt_vector2: vector returned by function `pre_gt_vector()`
+    non_kw_label: non keyword label
+    undefined_label: label assigned in case we try to merge 2 different keywords
     
-    Returns:
-    merged_vector:
+    Returns: 
+    merged_vector: vector resulting from the merger of gt_vector1 and gt_vector2 
     
     """     
     merged_vector = []
@@ -347,19 +356,21 @@ def merge_gt_vectors(gt_vector1, gt_vector2, non_kw_label, undefined_label=-1):
 
 
 
-def extract_gt_vector(windows_indexes, path2json_TED_talk, keywords, fs, is_from_train=False):
+def extract_gt_vector(windows_indexes, path2json_TED_talk, keywords, fs, undefined_label=-1, is_from_train=False):
     """
-    TODO : add description
+    Computes the ground truth vector of the TED talk in `path2json_TED_talk`; overlapping windows over the TED talk are extracted 
+    and labels are assigned to each one of these frames (non_keyword_label if the frame doesn't contain any keyword, the label of 
+    the keyword if the frame contains only one keyword, and `undefinied_label` if more than one keywords is present).
 
     Args:
-    windows_indexes:
-    path2json_TED_talk:
-    keywords:
-    fs:
-    is_from_train:
+    windows_indexes: list of tuples (start_window, end_window) of overlapping window indexes
+    path2json_TED_talk: path to the json file which contains the aligned transcript of the TED talk
+    keywords: list of keywords on which the models were trained on
+    fs: sampling frequency (Hz)
+    is_from_train: bool, is the TED talk from the train set (json file are constructed slightly differently)
     
     Returns:
-    gt_vector:
+    gt_vector: numpy array of labels.
     
     """   
     non_keyword_label = len(keywords)
@@ -371,3 +382,53 @@ def extract_gt_vector(windows_indexes, path2json_TED_talk, keywords, fs, is_from
         gt_vector = merge_gt_vectors(gt_vector, kw_gt_vector, non_kw_label=non_keyword_label, undefined_label=-1)
         
     return np.array(gt_vector)
+
+
+
+def probability_smoothing(y_pred, w_smooth=30):
+    """
+    Smooth out the probabilities returned by the model. For each frame, the probability for a given label 
+    is the average probabilities of the current and previous `w_smooth` frames for that label.
+    
+    Args:
+    y_pred: matrix of probabilities returned by the model
+    w_smooth: number of previous windows to take into account
+    
+    Returns:
+    y_pred_smoothed: smoothed version of the probability matrix y_pred.
+    """   
+    
+    rows, cols = y_pred.shape
+    y_pred_smoothed = np.zeros((rows, cols))
+    for j in tqdm(range(rows)):
+        for i in range(cols):
+            h_smooth = max(0, j - w_smooth)
+            prev_prob = list(y_pred[h_smooth:(j+1),i])
+            y_pred_smoothed[j, i] =  ( 1/len(prev_prob) ) * sum(prev_prob)
+            
+    return y_pred_smoothed
+
+
+
+def reduce_false_alarms(y_pred):
+    """
+    We should detect several times the keyword when sliding the window over its occurence. Thus predicting a single keyword label on consecutive sliding frames
+    would suggest having a false alarm. When having such scenarios, we assign the non_keyword label to it.    
+    
+    Args:
+    y_pred: matrix of probabilities returned by the model
+    
+    Returns:
+    y_pred_modified: modified version of the probability matrix y_pred.
+    """   
+    rows, cols = y_pred.shape
+    y_pred_modified = y_pred.copy()
+    non_keyword_label = cols - 1
+    for i in tqdm(range(1, rows - 1)):
+        for j in range(cols):
+            cond_1 = ( j != non_keyword_label ) and ( y_pred[i, j] >= 0.5 )
+            cond_2 = ( y_pred[i-1, j] < 0.5 ) and ( y_pred[i+1, j] < 0.5 )
+            if cond_1 and cond_2:
+                y_pred_modified[i, non_keyword_label] += y_pred_modified[i, j]
+                y_pred_modified[i, j] = 0
+    return y_pred_modified

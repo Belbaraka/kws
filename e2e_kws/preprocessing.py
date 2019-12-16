@@ -1,27 +1,22 @@
-import os, sys, re
-from itertools import islice 
+import os, re
 import numpy as np
-import pandas as pd
 import hashlib
-import random
-import math
-import json
-from random import sample
 from tqdm import tqdm
 from python_speech_features import mfcc
 import scipy.io.wavfile as wav
+import librosa
 
 
 def augment_with_noise(signal, noise_factor=1.0):
-    """
-    TODO : add description
+    """  
+    Adds white gaussian noise to the signal
 
     Args:
-    signal: 
-    noise_factor:
+    signal: signal which contains a keyword or a non-keyword sample
+    noise_factor: standard deviation of the noise (default to 1)
 
     Returns:
-    augmented_data, paths to json files.
+    augmented_data : noisy version of the orginal signal.
     """     
     
     noise = np.random.randn(len(signal))
@@ -30,20 +25,50 @@ def augment_with_noise(signal, noise_factor=1.0):
     augmented_data = augmented_data.astype(type(signal[0]))
     return augmented_data
 
-
-def compute_mfcc(signal, fs, threshold=1.0, num_features=40, add_noise=True): 
-    """
-    TODO : add description
+def augment_with_volume(signal):
+    """  
+    Multiply signal by a random number between 1.5 and 3.
 
     Args:
-    signal: 
-    fs:
-    threshold:
-    num_features:
-    add_noise:
+    signal: signal which contains a keyword or a non-keyword sample
+
+    Returns:
+    Amplified version of the orginal signal.
+    """ 
+    
+    vol_factor = np.random.uniform(low=1.5,high=3)
+    return vol_factor * signal
+
+def pitch_changing(signal, fs, pitch_factor=4):
+    """
+    Change pitch of signal.
+
+    Args:
+    signal: signal which contains a keyword or a non-keyword sample
+    fs: sampling frequency
     
     Returns:
-    augmented_data, paths to json files.
+    New version of the orginal signal.
+    """ 
+    return librosa.effects.pitch_shift(signal, fs, n_steps=pitch_factor)
+
+def compute_mfcc(signal, fs, threshold=1.0, num_features=40, is_kw=True, add_noise=False, manipulate_pitch=False, add_volume=False): 
+    """
+    Computes the MFCC features. The signal is first passed through a low pass filter with frequencies 20Hz-4000Hz. 
+    Various data augmentation techniques can be used on the signal before computing the MFCC features.
+    
+    Args:
+    signal: signal which contains a keyword or a non-keyword sample
+    fs: sampling frequency (usually 16kHz)
+    threshold: fixed size window (in seconds) over which the MFCCs are computed
+    num_features: number of MFCCs
+    add_noise: bool, augment with noise 
+    manipulate_pitch: bool, augment with pitch change
+    add_volume: bool; augment with volume 
+    
+    Returns:
+    all_features: list of features matrices; if for examples only add_noise is enabled, a list of 2 features matrices is returned
+                  one for the orignal signal and the other for the noisy version of the signal.
     """       
     dur = len(signal)
     if dur < int(threshold * fs):
@@ -52,21 +77,36 @@ def compute_mfcc(signal, fs, threshold=1.0, num_features=40, add_noise=True):
     else:
         signal = signal[:int(threshold * fs)]
     
+    
     features = mfcc(signal, samplerate=fs, winlen=0.030, winstep=0.01, numcep=num_features,
                     lowfreq=20, highfreq=4000, appendEnergy=False, nfilt=num_features)
+
+    all_features = []
+    all_features.append(features)
     
-    if add_noise:
+    if add_noise and is_kw:
         noisy_signal = augment_with_noise(signal, noise_factor=1.0)
         noisy_features = mfcc(noisy_signal, samplerate=fs, winlen=0.030, winstep=0.01, numcep=num_features,
-                    lowfreq=20, highfreq=4000, appendEnergy=False, nfilt=num_features)
-        
-        return features, noisy_features
-    else:
-        return features
+                                lowfreq=20, highfreq=4000, appendEnergy=False, nfilt=num_features)
+
+        all_features.append(noisy_features)
+
+    if manipulate_pitch and is_kw:
+        changed_pitch_signal = pitch_changing(signal.astype(float), fs, pitch_factor=4)
+        changed_pitch_features = mfcc(changed_pitch_signal, samplerate=fs, winlen=0.030, winstep=0.01, numcep=num_features,
+                                      lowfreq=20, highfreq=4000, appendEnergy=False, nfilt=num_features)
+
+        all_features.append(changed_pitch_features)
     
+    if add_volume and is_kw:
+        louder_signal = augment_with_volume(signal)
+        louder_signal_features = mfcc(louder_signal, samplerate=fs, winlen=0.030, winstep=0.01, numcep=num_features,
+                                      lowfreq=20, highfreq=4000, appendEnergy=False, nfilt=num_features)
+
+        all_features.append(louder_signal_features)        
+
+    return all_features
     
-    
-MAX_NUM_WAVS_PER_CLASS = 2**27 - 1  # ~134M
 
 def which_set(filename, validation_percentage, testing_percentage):
     """
@@ -92,6 +132,8 @@ def which_set(filename, validation_percentage, testing_percentage):
     Returns:
     String, one of 'training', 'validation', or 'testing'.
     """
+    
+    MAX_NUM_WAVS_PER_CLASS = 2**27 - 1  # ~134M
     
     kw = filename.split('/')[-2]
     base_name = kw + '-' + os.path.basename(filename).replace('_', '-', 1)
@@ -119,69 +161,64 @@ def which_set(filename, validation_percentage, testing_percentage):
     return result
 
 
-def generate_sets(filenames, keywords, validation_percentage=10, testing_percentage=10, add_noise=True):
+def generate_sets(filenames, keywords, validation_percentage=10, testing_percentage=10, add_noise=False, manipulate_pitch=False, add_volume=False):
     """
-    TODO : add description
+    Computes the datasets used for training, validation and testing.
 
     Args:
-    filenames: 
-    validation_percentage:
-    testing_percentage:
-    add_noise:
+    filenames: list of paths to the wav signals of the keyword and non-keyword samples 
+    validation_percentage: percentage of data used for validation
+    testing_percentage: percentage of data used for testing
+    add_noise: bool, augment with noise 
+    manipulate_pitch: bool, augment with pitch change
+    add_volume: bool; augment with volume 
     
     Returns:
-    training: 
-    validation:
-    testing:
+    training, validation, testing: lists of features matrices and their respective label, each element in these lists is a tuple (feature_matrix, label)
     """  
     
-    non_keywords_label = len(keywords)
+    non_keyword_label = len(keywords)
 
     training, validation, testing = [], [], []
 
-    for filename in tqdm(filenames, position=0, leave=True):
+    for filename in tqdm(filenames):
         _, signal = wav.read(filename)
         kw = filename.split('/')[-2]
-
-        if add_noise and (kw in keywords):
-            feats, noisy_feats = compute_mfcc(signal, fs=16000, threshold=1.0, num_features=40, add_noise=add_noise)
-        else:
-            feats = compute_mfcc(signal, fs=16000, threshold=1.0, num_features=40, add_noise=False)
-                            
+        
+        is_kw = kw in keywords
+        all_features = compute_mfcc(signal, fs=16000, threshold=1.0, num_features=40, is_kw=is_kw, 
+                                    add_noise=add_noise, manipulate_pitch=manipulate_pitch, add_volume=add_volume)
+        
         if kw in keywords:
             label = keywords.index(kw)
         else:
-            label = non_keywords_label
+            label = non_keyword_label
             
         grp = which_set(filename, validation_percentage, testing_percentage)
         
+        X_y = [(feats, label) for feats in all_features]
+        
         if grp is 'training':
-            training.append((feats, label))
-            if add_noise and (kw in keywords):
-                training.append((noisy_feats, label))
+            training.extend(X_y)
         elif grp is 'validation' :
-            validation.append((feats, label))
-            if add_noise and (kw in keywords):
-                validation.append((noisy_feats, label))            
+            validation.extend(X_y)
         else:
-            testing.append((feats, label))
-            if add_noise and (kw in keywords):
-                testing.append((noisy_feats, label))            
+            testing.extend(X_y)
     
     return training, validation, testing
 
 def get_X_y(grp, xdim, num_features=40):
     """
-    TODO : add description
-
+    Shapes the data (features matrices, labels) to the correct format.
+    
     Args:
-    grp: 
-    xdim:
-    num_features:
+    grp: list of tuples (feature_matrix, label)
+    xdim: row dimension of the feature matrix
+    num_features: number of MFCCs (column dimension of feature matrix)
     
     Returns:
-    X: 
-    y:
+    X: feature matrix with shape (xdim, num_features)
+    y: numpy array of labels
     """      
     X, y = zip(*grp)
     X = list(map(lambda x: x.reshape(xdim, num_features, 1), X))
