@@ -9,6 +9,6 @@ Code repo for the **Master Thesis** : *End-2-End continuous speech keyword spott
  
 - __`kws_db_creation/`__ : scripts to extract a keyword database out of TEDLIUM's first release.
  
-- __`misc/`__ : old scripts (*to be removed*).
+- __`misc/`__ : old scripts (*to be removed later*).
 
 - __`Notebooks/`__ : various notebooks used as a playground for experiments.
