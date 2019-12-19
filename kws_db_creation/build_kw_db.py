@@ -254,8 +254,8 @@ with open('1000-midlong', 'r') as thousend_words:
 
 
 Parallel(n_jobs=12)(delayed(extract_kw_train)(keyword, path2jsons_train) 
-                    for keyword in most_common_words)
+                    for keyword in ['how', 'now'])
 Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_dev) 
-                    for keyword in most_common_words)
+                    for keyword in ['how', 'now'])
 Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_test) 
-                    for keyword in most_common_words)
+                    for keyword in ['how', 'now'])

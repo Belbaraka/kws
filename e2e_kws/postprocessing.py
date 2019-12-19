@@ -205,7 +205,7 @@ def extract_sentence(path2wav_file, path2dataset, file_partition, keywords, dura
     start_signal, end_signal = int(start_sentence * fs), int(end_sentence * fs)
     sentence = signal[start_signal:end_signal]
     
-    y_test = produce_groundTruth_labels(sentence, label_kw=keywords.index(keyword), label_non_kw=len(keywords), 
+    y_test = produce_groundTruth_labels(sentence, kw_label=keywords.index(keyword), non_kw_label=len(keywords), 
                                         start_kw=start_kw-start_sentence, end_kw=start_kw-start_sentence + (end_kw -start_kw), 
                                         fs=fs, shift=shift, percentage_kw=percentage_kw)
     
@@ -412,7 +412,7 @@ def probability_smoothing(y_pred, w_smooth=30):
 
 def reduce_false_alarms(y_pred):
     """
-    We should detect several times the keyword when sliding the window over its occurence. Thus predicting a single keyword label on consecutive sliding frames
+    We should detect several times the keyword when sliding the window over its occurence. Thus predicting a single or 2 keyword label on consecutive sliding frames
     would suggest having a false alarm. When having such scenarios, we assign the non_keyword label to it.    
     
     Args:
@@ -426,9 +426,33 @@ def reduce_false_alarms(y_pred):
     non_keyword_label = cols - 1
     for i in tqdm(range(1, rows - 1)):
         for j in range(cols):
+            
+            # Case1: predicting single keyword labelon consecutive frames
             cond_1 = ( j != non_keyword_label ) and ( y_pred[i, j] >= 0.5 )
             cond_2 = ( y_pred[i-1, j] < 0.5 ) and ( y_pred[i+1, j] < 0.5 )
             if cond_1 and cond_2:
                 y_pred_modified[i, non_keyword_label] += y_pred_modified[i, j]
                 y_pred_modified[i, j] = 0
+                
+           # Case 2: predicting 2 consecutive keyword label on consecutive frames
+            cond_1 = (i+2 < rows ) and ( j != non_keyword_label ) and ( y_pred[i, j] >= 0.5 ) 
+                     and (y_pred[i+1, j] >= 0.5) and (y_pred[i-1, j] < 0.5) and (y_pred[i+2, j] < 0.5)
+                
+            cond_2 = (i-2 >= 0) and ( j != non_keyword_label ) and ( y_pred[i, j] >= 0.5 ) and (y_pred[i-1, j] >= 0.5) 
+                     and (y_pred[i+1, j] < 0.5) and (y_pred[i-2, j] < 0.5)
+            
+            if cond_1:
+                y_pred_modified[i, non_keyword_label] += y_pred_modified[i, j]
+                y_pred_modified[i+1, non_keyword_label] += y_pred_modified[i+1, j]
+                
+                y_pred_modified[i, j] = 0
+                y_pred_modified[i+1, j] = 0
+            
+            if cond_2:
+                y_pred_modified[i, non_keyword_label] += y_pred_modified[i, j]
+                y_pred_modified[i-1, non_keyword_label] += y_pred_modified[i-1, j]
+                
+                y_pred_modified[i, j] = 0
+                y_pred_modified[i-1, j] = 0            
+            
     return y_pred_modified

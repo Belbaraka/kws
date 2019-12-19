@@ -180,26 +180,31 @@ def get_files(path='/aimlx/Datasets/TEDLIUM_release1/train/wav'):
     """
     audiofiles = []
     all_sentences = []
+    invalid_stms = []
     
     for _, _, files in os.walk(path):
-        for file in files[200:]:
+        for file in files:
             if file.endswith('.wav'):
                 path2txt = os.path.join(path, file).replace('wav', 'stm')
-                sentences = get_transcript(path2transcript=path2txt)
-                n_sentences = len(sentences)
-                all_sentences.extend(sentences)
-                audiofiles.extend([os.path.join(path, file)] * n_sentences)  
+                try:
+                    sentences = get_transcript(path2transcript=path2txt)                 
+                    n_sentences = len(sentences)
+                    all_sentences.extend(sentences)
+                    audiofiles.extend([os.path.join(path, file)] * n_sentences)  
+                except:
+                    invalid_stms.append(path2txt)
                 
-    return audiofiles, all_sentences   
+    return audiofiles, all_sentences, invalid_stms
 
-#audiofiles, all_sentences = get_files(path='/aimlx/Datasets/TEDLIUM_release1/train/wav')
-#print(len(audiofiles))
-#print(len(all_sentences))
+audiofiles, all_sentences, invalid_stms = get_files(path='/aimlx/Datasets/TEDLIUM_release-3/data/wav')
+print(len(audiofiles))
+print(len(all_sentences))
+print(invalid_stms)
 
 #Create json files for each sentence
-#Parallel(n_jobs=11, prefer="threads")(delayed(write_json)(sentence[2], audiofile, offset=sentence[0], duration=sentence[1], output=audiofile.replace('wav','json'))
-#                                        for audiofile, sentence in zip(audiofiles, all_sentences))
+Parallel(n_jobs=12, prefer="threads")(delayed(write_json)(sentence[2], audiofile, offset=sentence[0], duration=sentence[1], output=audiofile.replace('wav','json'))
+                                        for audiofile, sentence in zip(audiofiles, all_sentences))
 
 #Merge json files for each TED talk
-ted_speakers = get_ted_speakers()
-Parallel(n_jobs=11, prefer="threads")(delayed(group_sentences)(ted_speaker) for ted_speaker in ted_speakers)
+#ted_speakers = get_ted_speakers()
+#Parallel(n_jobs=11, prefer="threads")(delayed(group_sentences)(ted_speaker) for ted_speaker in ted_speakers)
