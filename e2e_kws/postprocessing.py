@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import math
 import json
 from python_speech_features import mfcc
 from tqdm import tqdm
@@ -427,7 +428,7 @@ def reduce_false_alarms(y_pred):
     for i in tqdm(range(1, rows - 1)):
         for j in range(cols):
             
-            # Case1: predicting single keyword labelon consecutive frames
+            # Case 1: predicting single keyword label on consecutive frames
             cond_1 = ( j != non_keyword_label ) and ( y_pred[i, j] >= 0.5 )
             cond_2 = ( y_pred[i-1, j] < 0.5 ) and ( y_pred[i+1, j] < 0.5 )
             if cond_1 and cond_2:
@@ -435,10 +436,10 @@ def reduce_false_alarms(y_pred):
                 y_pred_modified[i, j] = 0
                 
            # Case 2: predicting 2 consecutive keyword label on consecutive frames
-            cond_1 = (i+2 < rows ) and ( j != non_keyword_label ) and ( y_pred[i, j] >= 0.5 ) 
+            cond_1 = (i+2 < rows ) and ( j != non_keyword_label ) and ( y_pred[i, j] >= 0.5 ) \
                      and (y_pred[i+1, j] >= 0.5) and (y_pred[i-1, j] < 0.5) and (y_pred[i+2, j] < 0.5)
                 
-            cond_2 = (i-2 >= 0) and ( j != non_keyword_label ) and ( y_pred[i, j] >= 0.5 ) and (y_pred[i-1, j] >= 0.5) 
+            cond_2 = (i-2 >= 0) and ( j != non_keyword_label ) and ( y_pred[i, j] >= 0.5 ) and (y_pred[i-1, j] >= 0.5) \
                      and (y_pred[i+1, j] < 0.5) and (y_pred[i-2, j] < 0.5)
             
             if cond_1:
@@ -456,3 +457,114 @@ def reduce_false_alarms(y_pred):
                 y_pred_modified[i-1, j] = 0            
             
     return y_pred_modified
+
+
+
+def segment_integration(y_prediction, y_gt, non_keyword_label, segment_size=5, undefined_label=-1):
+    """
+    Integration of the frame level predictions into a segment level.
+    
+    Args:
+    y_prediction: frame level prediction (argmax of matrix of probabilities)
+    y_gt: frame level ground_trut
+    segment_size: number of frames to take into account
+
+    Returns:
+    segmented_predictions: segmented level prediction.
+    segmented_groundTruth: segmented level ground truth.
+    """   
+    
+    nb_frames = len(y_prediction)
+    nb_segments = int(nb_frames / segment_size)
+    start = 0
+    
+    segmented_predictions = []
+    segmented_groundTruth = []
+    
+    for i in range(nb_segments):
+        
+        if i == (nb_segments - 1):
+            y_pred_seg = y_prediction[start:]
+            y_gt_seg = y_gt[start:]
+        else:
+            y_pred_seg = y_prediction[start:start + segment_size]
+            y_gt_seg = y_gt[start: start + segment_size]
+        
+        unique, counts = np.unique(y_gt_seg, return_counts=True) 
+        nb_unique = len(unique)
+        
+        # Merge the Ground Truth frames
+        if nb_unique == 1:
+            segmented_groundTruth.append(unique[0])
+        elif nb_unique == 2 and non_keyword_label in unique:
+            keyword_label = unique[unique != non_keyword_label ][0]
+            if counts[np.where(unique==keyword_label)] > 1:
+                segmented_groundTruth.append(keyword_label)
+            else:
+                segmented_groundTruth.append(non_keyword_label)
+        else:
+            segmented_groundTruth.append(undefined_label)
+        
+        # Merge predicted frames into segments
+        unique, counts = np.unique(y_pred_seg, return_counts=True)
+        seg_label = unique[np.argmax(counts)]    
+        segmented_predictions.append(seg_label)
+        
+        start = start+segment_size
+        
+    return np.array(segmented_predictions), np.array(segmented_groundTruth)
+
+
+
+def fom_result(segmented_predictions, segmented_groundTruth, keyword_label, T=0.5):
+    """
+    Computes the Figure of Merit (FOM) defined by NIST which is an upper-bound estimate on word spotting accuracy averaged over 1 to 10 false alarms per hour.
+    The FOM is calculated as follows where it is assumed that the total duration of the test speech is T hours. 
+    For each word, all of the spots are ranked in score order. The percentage of true hits pi 
+    found before the i’th false alarm is then calculated for i = 1 . . . N + 1 where N is the first integer ≥ 10T − 0.5. 
+    The FOM is then defined as : 1/(10T) *(p1 + p2 + ... + pN + ap(N+1)), where a = 10T − N is a factor that interpolates to 10 false alarms per hour
+
+    Args:
+    segmented_predictions: segmented level prediction.
+    segmented_groundTruth: segmented level ground truth.
+    keyword_label: label of of the keyword for which the FOM is calculated.
+    T: duration in hours of test speech.
+
+    Returns:
+    hits: number of hits
+    false_alarms: number of false alarms
+    nb_TP : number of actual keyword label
+    fom: figure of merit for the given keyword
+    """   
+    
+    N = math.ceil(10*T - 0.5)
+    a = 10*T - N
+    hits = 0
+    false_alarms = 0
+    probabilities = [] # list of probabilities p1, p2, ...
+    
+    # Number of actual keywords test speech
+    nb_TP = sum(segmented_groundTruth == keyword_label)
+    
+    for pred, gt in zip(segmented_predictions, segmented_groundTruth):
+        if pred == keyword_label and pred == gt:
+            hits += 1
+        elif pred == keyword_label and pred != gt:
+            false_alarms += 1
+            p_i  = hits / nb_TP #percentage of true hits
+            probabilities.append(p_i)
+    
+    fom = 0
+    m = min(N + 1, len(probabilities))
+    print(probabilities)
+    for i in range(0, m):
+        if i == N:
+            fom += a * probabilities[i]
+        else:
+            fom += probabilities[i]
+            
+    fom = (1/10*T) * fom 
+    
+    return hits, false_alarms, nb_TP, fom
+            
+    

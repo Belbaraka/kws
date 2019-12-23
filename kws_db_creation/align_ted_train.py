@@ -33,11 +33,11 @@ def write_json(transcript, audiofile, offset, duration, output,
     conservative: bool, conservative alignment 
     """
     
-    print("Processing audio file ", audiofile)
+    #print("Processing audio file ", audiofile)
     resources = gentle.Resources()
 
     with gentle.resampled(audiofile, offset=offset, duration=duration) as wavfile:
-        print("Starting alignment")
+        #print("Starting alignment")
         aligner = gentle.ForcedAligner(resources, transcript, nthreads=nthreads, disfluency=disfluency, 
                                        conservative=conservative, disfluencies=disfluencies)
         result = aligner.transcribe(wavfile)
@@ -181,25 +181,27 @@ def get_files(path='/aimlx/Datasets/TEDLIUM_release1/train/wav'):
     audiofiles = []
     all_sentences = []
     invalid_stms = []
+    nb_audio_file = 0
     
     for _, _, files in os.walk(path):
-        for file in files:
+        for file in files[698:]:
             if file.endswith('.wav'):
                 path2txt = os.path.join(path, file).replace('wav', 'stm')
                 try:
                     sentences = get_transcript(path2transcript=path2txt)                 
                     n_sentences = len(sentences)
                     all_sentences.extend(sentences)
-                    audiofiles.extend([os.path.join(path, file)] * n_sentences)  
+                    audiofiles.extend([os.path.join(path, file)] * n_sentences)
+                    nb_audio_file += 1
                 except:
                     invalid_stms.append(path2txt)
-                
     return audiofiles, all_sentences, invalid_stms
 
 audiofiles, all_sentences, invalid_stms = get_files(path='/aimlx/Datasets/TEDLIUM_release-3/data/wav')
 print(len(audiofiles))
 print(len(all_sentences))
 print(invalid_stms)
+
 
 #Create json files for each sentence
 Parallel(n_jobs=12, prefer="threads")(delayed(write_json)(sentence[2], audiofile, offset=sentence[0], duration=sentence[1], output=audiofile.replace('wav','json'))
