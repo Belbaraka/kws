@@ -229,23 +229,7 @@ path2wordcounts = ['/aimlx/Datasets/TEDLIUM_release1/dev/dev_word_count.json', '
 #word_count(path2jsons_dev, output=path2wordcounts[0])
 #word_count(path2jsons_test, output=path2wordcounts[1])
 #word_count(path2jsons_train, output=path2wordcounts[2])
-
-
 #_ = overall_word_count(path2wordcounts, save_result=True)
-    
-#keywords = ['people', 'something', 'little', 'hundred', 'important', 'problem', 'million', 
-#           'technology', 'africa', 'science', 'community', 'government', 'challenge', 'major', 
-#           'organization', 'london', 'washington', 'japanese', 'nigeria', 'england', 'germany',
-#           'ingredients', 'rose', 'benjamin', 'kevin']
-
-non_keywords = ['outside', 'difference', 'innovation', 'scientific', 'becomes', 'carbon', 'solar', 
-                'serious', 'especially', 'collaboration', 'correct', 'improvement', 'integrated', 
-                'bottles', 'everyone', 'compassionate', 'smoke', 'bones', 'whales', 'radiation']
-
-keywords = ['people', 'because', 'think', 'world', 'more', 'percent', 
-            'today', 'last', 'another', 'change', 'should', 'sort', 
-            'find', 'after', 'fact']
-
 
 most_common_words = []
 with open('1000-midlong', 'r') as thousend_words:
@@ -255,7 +239,8 @@ with open('1000-midlong', 'r') as thousend_words:
 
 Parallel(n_jobs=12)(delayed(extract_kw_train)(keyword, path2jsons_train) 
                     for keyword in ['how', 'now'])
-Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_dev) 
-                    for keyword in ['how', 'now'])
-Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_test) 
-                    for keyword in ['how', 'now'])
+
+#Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_dev) 
+#                    for keyword in ['how', 'now'])
+#Parallel(n_jobs=12)(delayed(extract_kw_dev_test)(keyword, path2jsons_test) 
+#                    for keyword in ['how', 'now'])

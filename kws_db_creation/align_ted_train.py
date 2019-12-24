@@ -184,7 +184,7 @@ def get_files(path='/aimlx/Datasets/TEDLIUM_release1/train/wav'):
     nb_audio_file = 0
     
     for _, _, files in os.walk(path):
-        for file in files[698:]:
+        for file in files[1530:]:
             if file.endswith('.wav'):
                 path2txt = os.path.join(path, file).replace('wav', 'stm')
                 try:
