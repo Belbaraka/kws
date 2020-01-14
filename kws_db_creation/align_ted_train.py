@@ -53,8 +53,7 @@ def write_json(transcript, audiofile, offset, duration, output,
     fh.close()
     print("Output written to %s" % (output))
 
-
-def group_sentences(ted_speaker, path2jsons='/aimlx/Datasets/TEDLIUM_release1/train/json/', path2output='/aimlx/Datasets/TEDLIUM_release1/train/final_json/'):
+def group_sentences(ted_speaker, path2jsons='/aimlx/Datasets/TEDLIUM_release-3/data/json/', path2output='/aimlx/Datasets/TEDLIUM_release-3/data/final_json/'):
     """
     For a given TED speaker, merge all the json files created into a single one. 
     The json file created represent the alignment of the transcript with the TED talk at the word level.
@@ -70,6 +69,7 @@ def group_sentences(ted_speaker, path2jsons='/aimlx/Datasets/TEDLIUM_release1/tr
     
     # Compute a sorted list of offsets, representing the beginning of each sentence in the audio file of the `ted_speaker`
     path = os.path.join(path2jsons, ted_speaker) 
+        
     offsets = [float(name.split('*')[1]) for name in os.listdir(path) if not name.startswith('.')]
     offsets.sort()
     
@@ -79,18 +79,21 @@ def group_sentences(ted_speaker, path2jsons='/aimlx/Datasets/TEDLIUM_release1/tr
     
     for offset in offsets:
         filename = ted_speaker + '*' + str(offset) +'*.json'
-        
+
         with open(os.path.join(path2jsons, ted_speaker, filename)) as json_file:
             data = json.load(json_file)
-            grouped_json['transcript'] = grouped_json['transcript'] + ' ' + data['transcript']
-            nb_words = len(grouped_json['words'])
             
-            for i, word in enumerate(data['words']):
-                grouped_json['words'][i + nb_words] = copy.deepcopy(data['words'][i])
-                
-                if not grouped_json['words'][i + nb_words]['case'] == 'not-found-in-audio':
-                    grouped_json['words'][i + nb_words]['start'] += offset
-                    grouped_json['words'][i + nb_words]['end'] += offset
+            if 'transcript' in data.keys():
+    
+                grouped_json['transcript'] = grouped_json['transcript'] + ' ' + data['transcript']
+                nb_words = len(grouped_json['words'])
+
+                for i, word in enumerate(data['words']):
+                    grouped_json['words'][i + nb_words] = copy.deepcopy(data['words'][i])
+
+                    if not grouped_json['words'][i + nb_words]['case'] == 'not-found-in-audio':
+                        grouped_json['words'][i + nb_words]['start'] += offset
+                        grouped_json['words'][i + nb_words]['end'] += offset
                     
         #os.remove(os.path.join(path2jsons, ted_speaker, filename))
     
@@ -99,7 +102,7 @@ def group_sentences(ted_speaker, path2jsons='/aimlx/Datasets/TEDLIUM_release1/tr
         json.dump(grouped_json, fp)
 
         
-def get_ted_speakers(path2jsons='/aimlx/Datasets/TEDLIUM_release1/train/json/'):
+def get_ted_speakers(path2jsons='/aimlx/Datasets/TEDLIUM_release-3/data/json/'):
     """
     Fetching the name of all the TED talks 
     
@@ -197,15 +200,15 @@ def get_files(path='/aimlx/Datasets/TEDLIUM_release1/train/wav'):
                     invalid_stms.append(path2txt)
     return audiofiles, all_sentences, invalid_stms
 
-audiofiles, all_sentences, invalid_stms = get_files(path='/aimlx/Datasets/TEDLIUM_release-3/data/wav')
-print(len(audiofiles))
-print(len(all_sentences))
-print(invalid_stms)
+#audiofiles, all_sentences, invalid_stms = get_files(path='/aimlx/Datasets/TEDLIUM_release-3/data/wav')
+#print(len(audiofiles))
+#print(len(all_sentences))
+#print(invalid_stms)
 
 
 #Create json files for each sentence
-Parallel(n_jobs=12, prefer="threads")(delayed(write_json)(sentence[2], audiofile, offset=sentence[0], duration=sentence[1], output=audiofile.replace('wav','json'))
-                                        for audiofile, sentence in zip(audiofiles, all_sentences))
+#Parallel(n_jobs=12, prefer="threads")(delayed(write_json)(sentence[2], audiofile, offset=sentence[0], duration=sentence[1], output=audiofile.replace('wav','json'))
+#                                        for audiofile, sentence in zip(audiofiles, all_sentences))
 
 #Merge json files for each TED talk
 #ted_speakers = get_ted_speakers()
