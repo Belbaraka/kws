@@ -36,7 +36,7 @@ def generate_windows(signal, fs, window_dur=1.0, shift=0.3):
 
 
 
-def compute_mfcc_frames(signal, fs, xdim, shift=0.3, num_features=40):
+def compute_mfcc_frames(signal, fs, xdim, w_dur=1.0, shift=0.3, num_features=40, verbose=1):
     """
     Compute MFCC features over overlapping windows extracted from the signal.
 
@@ -44,6 +44,7 @@ def compute_mfcc_frames(signal, fs, xdim, shift=0.3, num_features=40):
     signal: signal over which window will be extracted and features computed
     fs: sampling frequency
     xdim: row dimension of the feature matrix
+    w_dur: window/frame duration (in seconds)
     shift: amount (in seconds) by which windows are shifted
     num_features: number of MFCCs (column dimension of feature matrix)
     
@@ -51,12 +52,12 @@ def compute_mfcc_frames(signal, fs, xdim, shift=0.3, num_features=40):
     Numpy array of shape (number_of_frames_extracted, xdim, num_features, 1),
     where the features extracted from the signal are stacked together.
     """     
-    windows = generate_windows(signal, fs=fs, shift=shift)
+    windows = generate_windows(signal, fs=fs, window_dur=w_dur, shift=shift)
     frames = []
     
-    for window in tqdm(windows):
-        frame = mfcc(window, samplerate=16000, winlen=0.030, winstep=0.01, numcep=40, 
-                     lowfreq=20, highfreq=4000, appendEnergy=False, nfilt=40)
+    for window in (tqdm(windows) if verbose else windows):
+        frame = mfcc(window, samplerate=16000, winlen=0.030, winstep=0.01, numcep=num_features, 
+                     lowfreq=20, highfreq=4000, appendEnergy=False, nfilt=num_features)
         frames.append(frame)
     return np.array(frames).reshape(-1, xdim, num_features, 1)
 
@@ -357,7 +358,7 @@ def merge_gt_vectors(gt_vector1, gt_vector2, non_kw_label, undefined_label=-1):
 
 
 
-def extract_gt_vector(windows_indexes, path2json_TED_talk, keywords, fs, undefined_label=-1, is_from_train=False):
+def extract_gt_vector(windows_indexes, path2json_TED_talk, keywords, fs, undefined_label=-1, is_from_train=False, verbose=1):
     """
     Computes the ground truth vector of the TED talk in `path2json_TED_talk`; overlapping windows over the TED talk are extracted 
     and labels are assigned to each one of these frames (non_keyword_label if the frame doesn't contain any keyword, the label of 
@@ -377,7 +378,7 @@ def extract_gt_vector(windows_indexes, path2json_TED_talk, keywords, fs, undefin
     non_keyword_label = len(keywords)
     gt_vector = [non_keyword_label] * len(windows_indexes)
     
-    for kw in tqdm(keywords):
+    for kw in (tqdm(keywords) if verbose else keywords):
         keyword_occurences = extract_keyword_occurences(path2json_TED_talk, kw, fs, is_from_train)
         kw_gt_vector = pre_gt_vector(windows_indexes, keyword_occurences, non_keyword_label, kw_label=keywords.index(kw))
         gt_vector = merge_gt_vectors(gt_vector, kw_gt_vector, non_kw_label=non_keyword_label, undefined_label=-1)
@@ -507,7 +508,10 @@ def segment_integration(y_prediction, y_gt, non_keyword_label, segment_size=5, u
         
         # Merge predicted frames into segments
         unique, counts = np.unique(y_pred_seg, return_counts=True)
-        seg_label = unique[np.argmax(counts)]    
+        if max(counts) > 2:
+            seg_label = unique[np.argmax(counts)]    
+        else:
+            seg_label = non_keyword_label
         segmented_predictions.append(seg_label)
         
         start = start+segment_size

@@ -79,7 +79,7 @@ def dnn_model():
     return model
 
 
-def cnn_parada():
+def cnn_parada(keywords, xdim=98, num_features=40):
     model = Sequential()
     model.add(Conv2D(64, kernel_size=(30,8), activation='relu', input_shape=(xdim, num_features, 1), data_format='channels_last', strides=(1, 1))) 
     model.add(BatchNormalization(axis=-1))

@@ -161,12 +161,15 @@ def which_set(filename, validation_percentage, testing_percentage):
     return result
 
 
-def generate_sets(filenames, keywords, validation_percentage=10, testing_percentage=10, add_noise=False, manipulate_pitch=False, add_volume=False):
+def generate_sets(filenames, keywords, frame_size=0.6, n_mfcc=40, validation_percentage=10, testing_percentage=10, add_noise=False, manipulate_pitch=False, add_volume=False):
     """
     Computes the datasets used for training, validation and testing.
 
     Args:
     filenames: list of paths to the wav signals of the keyword and non-keyword samples 
+    keywords: list of keywords
+    frame_size: size in second of frame over which MFCCs are computed
+    n_mfcc: number of MFCC features to compute
     validation_percentage: percentage of data used for validation
     testing_percentage: percentage of data used for testing
     add_noise: bool, augment with noise 
@@ -186,7 +189,7 @@ def generate_sets(filenames, keywords, validation_percentage=10, testing_percent
         kw = filename.split('/')[-2]
         
         is_kw = kw in keywords
-        all_features = compute_mfcc(signal, fs=16000, threshold=1.0, num_features=40, is_kw=is_kw, 
+        all_features = compute_mfcc(signal, fs=16000, threshold=frame_size, num_features=n_mfcc, is_kw=is_kw, 
                                     add_noise=add_noise, manipulate_pitch=manipulate_pitch, add_volume=add_volume)
         
         if kw in keywords:
@@ -222,4 +225,4 @@ def get_X_y(grp, xdim, num_features=40):
     """      
     X, y = zip(*grp)
     X = list(map(lambda x: x.reshape(xdim, num_features, 1), X))
-    return np.array(X).reshape(-1, xdim, num_features, 1), np.array(y).reshape(-1,1)
+    return np.array(X, dtype=np.float32).reshape(-1, xdim, num_features, 1), np.array(y, dtype=np.float32).reshape(-1,1)
