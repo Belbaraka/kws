@@ -20,7 +20,11 @@ We propose in what follows scripts used to detect a given set of keywords in con
 
 **Notebooks**
 
-- __`db_statitics.ipynb`__ : statistics about the keyword database used (1000 words extracted from TEDLIUM's first release)
+- __`db_statitics_ted_1.ipynb`__ : statistics about the keyword database extracted from TEDLIUM's first release
+
+- __`db_statitics_ted_3.ipynb`__ : statistics about the keyword database extracted from TEDLIUM's third release
+
+- __`demo.ipynb`__ : demo notebook, extract keyword occurrences given a test speech.
 
 - __`e2e_kws_tedlium.ipynb`__ : notebook that performs the E2E-CSKWS all the way through (*pre-processing*, *training*, *postprocessing*, *testing* and *plotting*)
 
