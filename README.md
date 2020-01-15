@@ -7,7 +7,7 @@ Code repo for the **Master Thesis** : *End-2-End continuous speech keyword spott
  
 - __`e2e_kws/`__ : end-2-end keyword spotting system.
  
-- __`kws_db_creation/`__ : scripts to extract a keyword database out of TEDLIUM's first release.
+- __`kws_db_creation/`__ : scripts to extract a keyword database out of TEDLIUM's third release.
  
 - __`misc/`__ : old scripts (*to be removed later*).
 
