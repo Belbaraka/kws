@@ -7,10 +7,11 @@ from keras.models import Model
 from keras.optimizers import SGD, Adam
 from sklearn.metrics import accuracy_score
 from losses import *
+import math
+import numpy as np
 
 
-
-def res_net():
+def res_net(keywords, xdim=98, num_features=40):
     
     input_data = Input(shape=(xdim, num_features, 1))
     l = 0
@@ -48,7 +49,7 @@ def res_net():
     
     return model
 
-def dnn_model():
+def dnn_model(keywords, xdim=98, num_features=40):
     model = Sequential()
     model.add(Conv2D(64, kernel_size=(3,3), activation='relu', input_shape=(xdim, num_features, 1), data_format='channels_last')) 
     model.add(BatchNormalization(axis=-1))
