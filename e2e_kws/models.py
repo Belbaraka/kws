@@ -15,23 +15,24 @@ def res_net(keywords, xdim=98, num_features=40):
     
     input_data = Input(shape=(xdim, num_features, 1))
     l = 0
-    for i in range(6):
+    #for i in range(6) conv filter 45:
+    for i in range(3):
         if i == 0:
-            x = Conv2D(45, kernel_size=(3,3), activation='relu', data_format='channels_last', 
+            x = Conv2D(20, kernel_size=(3,3), activation='relu', data_format='channels_last', 
                        padding='same', kernel_initializer='glorot_uniform')(input_data)
             x = BatchNormalization(axis=-1)(x)
             l += 1
-            x = Conv2D(45, kernel_size=(3,3), activation='relu', data_format='channels_last', 
+            x = Conv2D(20, kernel_size=(3,3), activation='relu', data_format='channels_last', 
                        padding='same', kernel_initializer='glorot_uniform', dilation_rate=int(math.pow(2, np.floor(l/3))))(x)
             l += 1
             x = BatchNormalization(axis=-1)(x)
             
         else:
-            y = Conv2D(45, kernel_size=(3,3), activation='relu', data_format='channels_last', 
+            y = Conv2D(20, kernel_size=(3,3), activation='relu', data_format='channels_last', 
                        padding='same', kernel_initializer='glorot_uniform', dilation_rate=int(math.pow(2, np.floor(l/3))))(x)
             y = BatchNormalization(axis=-1)(y)
             l += 1
-            y = Conv2D(45, kernel_size=(3,3), activation='relu', data_format='channels_last', 
+            y = Conv2D(20, kernel_size=(3,3), activation='relu', data_format='channels_last', 
                        padding='same', kernel_initializer='glorot_uniform', dilation_rate=int(math.pow(2, np.floor(l/3))))(y)
             l += 1
             y = BatchNormalization(axis=-1)(y)

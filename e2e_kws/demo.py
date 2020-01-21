@@ -166,8 +166,12 @@ def spot_keywords(user_id, _set, recorder, model_type='dnn', shift=0.001, w_smoo
     print("[4/4]: Extracting keyword occurrences\n")
     
     print("*************************************")
+    
     all_kw_occurrences = keywords_found(keywords, predicted_segments, window_dur=frame_dur, 
                                         shift=shift, segment_size=segment_size)
+    if len(all_kw_occurences) == 0:
+        print('No keywords found')
+        
     print("*************************************")
 
     return all_kw_occurrences, sig, fs

@@ -519,8 +519,41 @@ def segment_integration(y_prediction, y_gt, non_keyword_label, segment_size=5, u
     return np.array(segmented_predictions), np.array(segmented_groundTruth)
 
 
+def segments_pruning(seg_preds, kw_label, window_dur=1.0, shift=0.1, segment_size=5):
+    
+    kw_occurences = []
+    n_segs = len(seg_preds)
+    kw_occ = []
+    
+    # First round of pruning
+    for i, segment in enumerate(seg_preds):
+        if segment == kw_label and i < n_segs - 1:
+            start = shift * segment_size * i
+            end = start + window_dur + (segment_size - 1) * shift
+            kw_occ.append((start, end, i))
+        else:
+            if  len(kw_occ)>0:
+                kw_occurences.append(kw_occ[0])
+                kw_occ = []                
+    if  len(kw_occ)>0:
+        kw_occurences.append(kw_occ[0])   
+       
+    # Second round of pruning
+    temp_indices = []
+    for i,kw_occ in enumerate(kw_occurences[:-1]):
+        curr_start, curr_end = kw_occ[0], kw_occ[1]
+        next_start, next_end = kw_occurences[i+1][0], kw_occurences[i+1][1]
+        
+        if next_start < curr_end:
+            temp_indices.append(i+1)
+            
+    kw_occ_seg_idx = [kw_occurences[i][2] for i in range(len(kw_occurences)) if i not in temp_indices]
+    
+    return kw_occ_seg_idx
 
-def fom_result(segmented_predictions, segmented_groundTruth, keyword_label, T=0.5):
+
+
+def fom_result(seg_preds, seg_gt, keyword_label, window_dur=1.0, shift=0.1, segment_size=5, T=0.5):
     """
     Computes the Figure of Merit (FOM) defined by NIST which is an upper-bound estimate on word spotting accuracy averaged over 1 to 10 false alarms per hour.
     The FOM is calculated as follows where it is assumed that the total duration of the test speech is T hours. 
@@ -529,8 +562,8 @@ def fom_result(segmented_predictions, segmented_groundTruth, keyword_label, T=0.
     The FOM is then defined as : 1/(10T) *(p1 + p2 + ... + pN + ap(N+1)), where a = 10T − N is a factor that interpolates to 10 false alarms per hour
 
     Args:
-    segmented_predictions: segmented level prediction.
-    segmented_groundTruth: segmented level ground truth.
+    seg_preds: segmented level prediction.
+    seg_gt: segmented level ground truth.
     keyword_label: label of of the keyword for which the FOM is calculated.
     T: duration in hours of test speech.
 
@@ -541,6 +574,13 @@ def fom_result(segmented_predictions, segmented_groundTruth, keyword_label, T=0.
     fom: figure of merit for the given keyword
     """   
     
+    predicted_kw_indexes = segments_pruning(seg_preds, keyword_label, window_dur=window_dur, shift=shift, segment_size=segment_size)
+    pred_kw_occs, gt_kw_occs = seg_preds[predicted_kw_indexes], seg_gt[predicted_kw_indexes]
+    
+    gt_kw_indexes = segments_pruning(seg_gt, keyword_label, window_dur=window_dur, shift=shift, segment_size=segment_size)
+    print(pred_kw_occs)
+    print(gt_kw_occs)
+    
     N = math.ceil(10*T - 0.5)
     a = 10*T - N
     hits = 0
@@ -548,12 +588,12 @@ def fom_result(segmented_predictions, segmented_groundTruth, keyword_label, T=0.
     probabilities = [] # list of probabilities p1, p2, ...
     
     # Number of actual keywords test speech
-    nb_TP = sum(segmented_groundTruth == keyword_label)
+    nb_TP = len(gt_kw_indexes)
     
-    for pred, gt in zip(segmented_predictions, segmented_groundTruth):
-        if pred == keyword_label and pred == gt:
+    for pred, gt in zip(pred_kw_occs, gt_kw_occs):
+        if pred == gt:
             hits += 1
-        elif pred == keyword_label and pred != gt:
+        else:
             false_alarms += 1
             p_i  = hits / nb_TP #percentage of true hits
             probabilities.append(p_i)
