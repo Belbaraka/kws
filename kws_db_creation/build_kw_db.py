@@ -237,11 +237,11 @@ path2wordcounts = ['/aimlx/Datasets/TEDLIUM_release1/dev/dev_word_count.json', '
 #word_count(path2jsons_train, output=path2wordcounts[2])
 #_ = overall_word_count(path2wordcounts, save_result=True)
 
-most_common_words = []
-with open('1000-midlong', 'r') as thousend_words:
-    for word in thousend_words:
-        most_common_words.append(word.strip())
+most_common_words = ['zucchini', 'accountable', 'deliberatly', 'democrats', 'delightful']
+#with open('1000-midlong', 'r') as thousend_words:
+#    for word in thousend_words:
+#        most_common_words.append(word.strip())
+
 
 path2jsons = get_jsons(path='/aimlx/Datasets/TEDLIUM_release-3/data/final_json/')
-        
 Parallel(n_jobs=12)(delayed(extract_kw_train)(keyword, path2jsons) for keyword in most_common_words)

@@ -593,7 +593,7 @@ def fom_result(seg_preds, seg_gt, keyword_label, window_dur=1.0, shift=0.1, segm
     for pred, gt in zip(pred_kw_occs, gt_kw_occs):
         if pred == gt:
             hits += 1
-        else:
+        elif gt != -1: #undefined label
             false_alarms += 1
             p_i  = hits / nb_TP #percentage of true hits
             probabilities.append(p_i)
