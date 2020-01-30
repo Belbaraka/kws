@@ -35,6 +35,31 @@ def generate_windows(signal, fs, window_dur=1.0, shift=0.3):
     return windows
 
 
+def mfcc_evaluation_set(signal, fs, windows, xdim=98, num_features=40, verbose=1):
+    """
+    Function specifically made for the evaluation set.
+    Compute MFCC features over overlapping windows extracted from the signal.
+
+    Args:
+    signal: signal over which window will be extracted and features computed
+    fs: sampling frequency
+    windows: list of window indexes on which we want to compute MFCC frames
+    xdim: row dimension of the feature matrix
+    num_features: number of MFCCs (column dimension of feature matrix)
+    
+    Returns:
+    Numpy array of shape (number_of_frames_extracted, xdim, num_features, 1),
+    where the features extracted from the signal are stacked together.
+    """     
+    frames = []
+    
+    for w in (tqdm(windows) if verbose else windows):
+        sig_window = signal[w[0]:w[1]]
+        frame = mfcc(sig_window, samplerate=16000, winlen=0.030, winstep=0.01, numcep=num_features, 
+                     lowfreq=20, highfreq=4000, appendEnergy=False, nfilt=num_features)
+        frames.append(frame)
+    return np.array(frames).reshape(-1, xdim, num_features, 1)
+
 
 def compute_mfcc_frames(signal, fs, xdim, w_dur=1.0, shift=0.3, num_features=40, verbose=1):
     """
@@ -461,12 +486,13 @@ def reduce_false_alarms(y_pred):
 
 
 
-def segment_integration(y_prediction, y_gt, non_keyword_label, segment_size=5, undefined_label=-1):
+def segment_integration(y_prediction, y_prob, y_gt, non_keyword_label, segment_size=5, undefined_label=-1):
     """
     Integration of the frame level predictions into a segment level.
     
     Args:
     y_prediction: frame level prediction (argmax of matrix of probabilities)
+    y_prob: frame level confidence score (max probability among labels)
     y_gt: frame level ground_trut
     segment_size: number of frames to take into account
 
@@ -480,15 +506,18 @@ def segment_integration(y_prediction, y_gt, non_keyword_label, segment_size=5, u
     start = 0
     
     segmented_predictions = []
+    segmented_scores = []
     segmented_groundTruth = []
     
     for i in range(nb_segments):
         
         if i == (nb_segments - 1):
             y_pred_seg = y_prediction[start:]
+            y_prob_seg = y_prob[start:]
             y_gt_seg = y_gt[start:]
         else:
             y_pred_seg = y_prediction[start:start + segment_size]
+            y_prob_seg = y_prob[start:start + segment_size]
             y_gt_seg = y_gt[start: start + segment_size]
         
         unique, counts = np.unique(y_gt_seg, return_counts=True) 
@@ -514,9 +543,12 @@ def segment_integration(y_prediction, y_gt, non_keyword_label, segment_size=5, u
             seg_label = non_keyword_label
         segmented_predictions.append(seg_label)
         
+        # Merge confidence scores by taking mean prob of assigned label
+        segmented_scores.append(np.mean(y_prob_seg[y_pred_seg == seg_label]))
+        
         start = start+segment_size
         
-    return np.array(segmented_predictions), np.array(segmented_groundTruth)
+    return np.array(segmented_predictions), np.array(segmented_scores), np.array(segmented_groundTruth)
 
 
 def segments_pruning(seg_preds, kw_label, window_dur=1.0, shift=0.1, segment_size=5):
@@ -553,7 +585,7 @@ def segments_pruning(seg_preds, kw_label, window_dur=1.0, shift=0.1, segment_siz
 
 
 
-def fom_result(seg_preds, seg_gt, keyword_label, window_dur=1.0, shift=0.1, segment_size=5, T=0.5):
+def fom_result(seg_preds, seg_scores, seg_gt, keyword_label, window_dur=1.0, shift=0.1, segment_size=5, T=0.5):
     """
     Computes the Figure of Merit (FOM) defined by NIST which is an upper-bound estimate on word spotting accuracy averaged over 1 to 10 false alarms per hour.
     The FOM is calculated as follows where it is assumed that the total duration of the test speech is T hours. 
@@ -563,6 +595,7 @@ def fom_result(seg_preds, seg_gt, keyword_label, window_dur=1.0, shift=0.1, segm
 
     Args:
     seg_preds: segmented level prediction.
+    seg_scores: segmented level confidence scores for the label assigned 
     seg_gt: segmented level ground truth.
     keyword_label: label of of the keyword for which the FOM is calculated.
     T: duration in hours of test speech.
@@ -575,11 +608,18 @@ def fom_result(seg_preds, seg_gt, keyword_label, window_dur=1.0, shift=0.1, segm
     """   
     
     predicted_kw_indexes = segments_pruning(seg_preds, keyword_label, window_dur=window_dur, shift=shift, segment_size=segment_size)
-    pred_kw_occs, gt_kw_occs = seg_preds[predicted_kw_indexes], seg_gt[predicted_kw_indexes]
+    confidence_scores = seg_scores[predicted_kw_indexes]    
+    
+    #Rank predicted keyword indexes according to confidence score
+    sorted_pred_kw_indexes = [x for _, x in sorted( zip( confidence_scores, predicted_kw_indexes), key=lambda pair: pair[0], reverse=True)]
+
+    
+    pred_kw_occs, gt_kw_occs = seg_preds[sorted_pred_kw_indexes], seg_gt[sorted_pred_kw_indexes]
+    
     
     gt_kw_indexes = segments_pruning(seg_gt, keyword_label, window_dur=window_dur, shift=shift, segment_size=segment_size)
-    print(pred_kw_occs)
-    print(gt_kw_occs)
+    #print(pred_kw_occs)
+    #print(gt_kw_occs)
     
     N = math.ceil(10*T - 0.5)
     a = 10*T - N
@@ -600,7 +640,7 @@ def fom_result(seg_preds, seg_gt, keyword_label, window_dur=1.0, shift=0.1, segm
     
     fom = 0
     m = min(N + 1, len(probabilities))
-    print(probabilities)
+    #print(probabilities)
     for i in range(0, m):
         if i == N:
             fom += a * probabilities[i]

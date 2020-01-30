@@ -101,7 +101,7 @@ def cnn_parada(nb_keywords, xdim=98, num_features=40):
 
 def baseline_dnn(nb_keywords, xdim=98, num_features=40):
     model = Sequential()
-    model.add(Input(shape=(xdim, num_features, 1)))
+    #model.add(Input(shape=(xdim, num_features, 1)))
     model.add(Flatten())
     model.add(Dense(units=128, activation='relu'))
     model.add(Dense(units=128, activation='relu'))
