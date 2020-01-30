@@ -15,7 +15,7 @@ import io
 
 
 kws_sets = [['people', 'because', 'think', 'world'], ['something', 'different', 'actually','important'], 
-            ['another', 'percent', 'problem', 'technology'], ['information', 'experience', 'government', 'computer']]
+            ['another', 'percent', 'problem', 'technology'], ['years', 'little', 'through', 'together']]
 
 path2_models = {1: {'cnn_parada': 'set1_models/cnn_parada_set1_5_epochs.h5', 
                     'dnn': 'set1_models/dnn_set1_5_epochs.h5'},
