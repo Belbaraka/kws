@@ -1,6 +1,8 @@
 ## kws
 Code repo for the **Master Thesis** : *End-2-End continuous speech keyword spotting* 
 
+![](e2e-cskws.png)
+
 **Repo's structure**
 
 - __`asr_kws/`__ : implementation of an ASR-based keyword spotting system.
