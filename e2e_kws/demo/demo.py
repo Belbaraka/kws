@@ -1,32 +1,31 @@
-import numpy as np
+import io, os, sys
+from io import BytesIO
 import warnings
 warnings.filterwarnings('ignore')
-from random import sample
-import os
 import scipy.io.wavfile as wav
+from random import sample
 import numpy as np
-from demo import *
-from postprocessing import compute_mfcc_frames, probability_smoothing, reduce_false_alarms
 import keras
 import IPython
 from IPython.display import display, Markdown
-from models import *
-import io
 
+sys.path.append(os.path.abspath('../'))
+from postprocessing import compute_mfcc_frames, probability_smoothing, reduce_false_alarms
+from models import *
 
 kws_sets = [['people', 'because', 'think', 'world'], ['something', 'different', 'actually','important'], 
             ['another', 'percent', 'problem', 'technology'], ['years', 'little', 'through', 'together']]
 
-path2_models = {1: {'cnn_parada': 'set1_models/cnn_parada_set1_5_epochs.h5', 
-                    'dnn': 'set1_models/dnn_set1_5_epochs.h5'},
-                2: {'cnn_parada': 'set2_models/cnn_parada_set2_4_epochs.h5', 
-                    'dnn': 'set2_models/dnn_set2_4_epochs.h5'},
-                3: {'cnn_parada': 'set3_models/cnn_parada_set3_4_epochs.h5', 
-                    'dnn': 'set3_models/dnn_set3_4_epochs.h5'},
-                4: {'cnn_parada': 'set4_models/cnn_parada_set4_3_epochs.h5', 
-                    'dnn': 'set4_models/dnn_set4_4_epochs.h5'}}
+path2_models = {1: {'cnn_parada': 'models/set1_models/cnn_parada_set1_5_epochs.h5', 
+                    'dnn': 'models/set1_models/dnn_set1_5_epochs.h5'},
+                2: {'cnn_parada': 'models/set2_models/cnn_parada_set2_4_epochs.h5', 
+                    'dnn': 'models/set2_models/dnn_set2_4_epochs.h5'},
+                3: {'cnn_parada': 'models/set3_models/cnn_parada_set3_4_epochs.h5', 
+                    'dnn': 'models/set3_models/dnn_set3_4_epochs.h5'},
+                4: {'cnn_parada': 'models/set4_models/cnn_parada_set4_3_epochs.h5', 
+                    'dnn': 'models/set4_models/dnn_set4_4_epochs.h5'}}
 
-path2data = '/Users/Belbaraka/Desktop/Swisscom/Thesis/Datasets/demo'
+#path2data = '/Users/Belbaraka/Desktop/Swisscom/Thesis/Datasets/demo'
 
 
 def frames2segments(y_prediction, non_keyword_label, segment_size=5):
@@ -116,9 +115,11 @@ def keywords_found(keywords, predicted_segments, window_dur=1.0, shift=0.1, segm
     return all_kw_occurences
 
 
-from ipywebrtc import AudioStream, AudioRecorder, CameraStream
 
 def set_up_recorder():
+    
+    from ipywebrtc import AudioRecorder, CameraStream
+    
     camera = CameraStream(constraints=
                       {'facing_mode': 'user',
                        'audio': True
@@ -128,17 +129,19 @@ def set_up_recorder():
     
     return recorder
 
-from io import BytesIO
-from pydub import AudioSegment
 
 def process_recording(user_id, recorder, _set): 
+    
+    from pydub import AudioSegment
     
     recorder.save('record.webm')
     sound = AudioSegment.from_file('record.webm', codec="opus")
     sound = sound.set_frame_rate(16000)
     sound = sound.set_channels(1)
     
-    filename = os.path.join(path2data, 'set' + str(_set), user_id + '.wav') 
+    #filename = os.path.join(path2data, 'set' + str(_set), user_id + '.wav') 
+    filename = 'set' + str(_set), user_id + '.wav'
+    
     sound.export(filename, format='wav')
     fs, sig = wav.read(filename)
     
