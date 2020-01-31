@@ -19,7 +19,7 @@ We propose in what follows scripts used to detect a given set of keywords in con
   
 - __`train.py`__ : script which trains a model to spot arbitrary list of keywords. 
 
-- __`scoring.py`__ : contrains functions that cleans test data (removing music part, clapping, ..) and computes fom results 
+- __`scoring.py`__ : contains functions that cleans test data (removing music part, clapping, ..) and computes fom results 
 
 **Folders**
 
