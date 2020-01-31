@@ -140,7 +140,7 @@ def process_recording(user_id, recorder, _set):
     sound = sound.set_channels(1)
     
     #filename = os.path.join(path2data, 'set' + str(_set), user_id + '.wav') 
-    filename = 'set' + str(_set), user_id + '.wav'
+    filename = 'set' + str(_set) + '_' + str(user_id) + '.wav'
     
     sound.export(filename, format='wav')
     fs, sig = wav.read(filename)
