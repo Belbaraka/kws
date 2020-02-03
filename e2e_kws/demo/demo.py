@@ -16,13 +16,13 @@ from models import *
 kws_sets = [['people', 'because', 'think', 'world'], ['something', 'different', 'actually','important'], 
             ['another', 'percent', 'problem', 'technology'], ['years', 'little', 'through', 'together']]
 
-path2_models = {1: {'cnn_parada': 'models/set1_models/cnn_parada_set1_5_epochs.h5', 
+path2_models = {1: {'parada': 'models/set1_models/parada_set1_4_epochs.h5', 
                     'dnn': 'models/set1_models/dnn_set1_5_epochs.h5'},
-                2: {'cnn_parada': 'models/set2_models/cnn_parada_set2_4_epochs.h5', 
+                2: {'parada': 'models/set2_models/parada_set2_3_epochs.h5', 
                     'dnn': 'models/set2_models/dnn_set2_4_epochs.h5'},
-                3: {'cnn_parada': 'models/set3_models/cnn_parada_set3_4_epochs.h5', 
+                3: {'parada': 'models/set3_models/parada_set3_2_epochs.h5', 
                     'dnn': 'models/set3_models/dnn_set3_4_epochs.h5'},
-                4: {'cnn_parada': 'models/set4_models/cnn_parada_set4_3_epochs.h5', 
+                4: {'parada': 'models/set4_models/parada_set4_3_epochs.h5', 
                     'dnn': 'models/set4_models/dnn_set4_4_epochs.h5'}}
 
 #path2data = '/Users/Belbaraka/Desktop/Swisscom/Thesis/Datasets/demo'
