@@ -30,9 +30,9 @@ if __name__ == "__main__":
                         help='path to json files which contains word level alignment of ted talks')    
     
     parser.add_argument('-p2ted', '--path2tedtalks', type=str, default='/aimlx/kws/e2e_kws/test_data/test_ted_talks_50.npy',
-                        help='path to the saved list of ted talks kept for testing')       
+                        help='path to the saved list of ted talks kept for testing (array of filenames)')       
     
-    parser.add_argument('-p2m', '--path2model', type=str, default='/aimlx/kws/e2e_kws/models/set1_models/dnn_set1_5_epochs.h5',
+    parser.add_argument('-p2m', '--path2model', type=str, default='/aimlx/kws/e2e_kws/demo/models/set1_models/dnn_set1_5_epochs.h5',
                         help='path to the model trained to spot the keywords given above') 
     
     
@@ -94,9 +94,13 @@ if __name__ == "__main__":
     
     df_results = pd.DataFrame(columns=['KeyWord', '#Hits', '#FA\'s', '#Actual', 'FOM', 'Recall', 'Precision'])
     for i in range(len(_keywords)):
-        hits, false_alarms, nb_TP, fom = fom_result(seg_preds, seg_scores, seg_gt, keyword_label=i, window_dur=1.0, shift=0.1, segment_size=5, T=T)
+        hits, false_alarms, nb_TP, fom = fom_result(seg_preds, seg_scores, seg_gt, keyword_label=i, T=T, window_dur=1.0, shift=0.1, segment_size=5)
+        if hits == 0:
+            recall, precision = 0, 0
+        else:
+            recall, precision = round(hits/nb_TP, 2), round(hits/(hits+false_alarms), 2)
         df_results = df_results.append({'KeyWord': _keywords[i], '#Hits': hits, '#FA\'s': false_alarms, '#Actual': nb_TP, 'FOM': round(fom, 2), 
-                                        'Recall': round(hits/nb_TP, 2), 'Precision': round(hits/(hits+false_alarms), 2)}, ignore_index=True)
+                                        'Recall': recall, 'Precision': precision}, ignore_index=True)
     
     df_results.to_pickle("df_results.pkl")
     print("FOM Resuls")

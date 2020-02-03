@@ -70,7 +70,7 @@ def prepare_test_ted_talks(test_ted_talks, keywords, shift=0.1, window_dur=1.0, 
 
 
 
-def fom_result(seg_preds, seg_scores, seg_gt, keyword_label, window_dur=1.0, shift=0.1, segment_size=5, T=0.5):
+def fom_result(seg_preds, seg_scores, seg_gt, keyword_label, T, window_dur=1.0, shift=0.1, segment_size=5, undefined_label=-1):
     """
     Computes the Figure of Merit (FOM) defined by NIST which is an upper-bound estimate on word spotting accuracy averaged over 1 to 10 false alarms per hour.
     The FOM is calculated as follows where it is assumed that the total duration of the test speech is T hours. 
@@ -98,43 +98,40 @@ def fom_result(seg_preds, seg_scores, seg_gt, keyword_label, window_dur=1.0, shi
     #Rank predicted keyword indexes according to confidence score
     sorted_pred_kw_indexes = [x for _, x in sorted( zip( confidence_scores, predicted_kw_indexes), key=lambda pair: pair[0], reverse=True)]
 
-    
     pred_kw_occs, gt_kw_occs = seg_preds[sorted_pred_kw_indexes], seg_gt[sorted_pred_kw_indexes]
     
-    
     gt_kw_indexes = segments_pruning(seg_gt, keyword_label, window_dur=window_dur, shift=shift, segment_size=segment_size)
-    #print(pred_kw_occs)
-    #print(gt_kw_occs)
     
     N = math.ceil(10*T - 0.5)
     a = 10*T - N
-    hits = 0
-    false_alarms = 0
+    hits = sum(pred_kw_occs == gt_kw_occs)
+
     probabilities = [] # list of probabilities p1, p2, ...
     
     # Number of actual keywords test speech
     nb_TP = len(gt_kw_indexes)
     
-    for pred, gt in zip(pred_kw_occs, gt_kw_occs):
-        if pred == gt:
-            hits += 1
-        elif gt != -1: #undefined label
-            false_alarms += 1
-            p_i  = hits / nb_TP #percentage of true hits
-            probabilities.append(p_i)
+    false_alarm_indices = np.where((gt_kw_occs != keyword_label) & (gt_kw_occs != undefined_label) )[0]
+    false_alarms = len(false_alarm_indices)
+
+    probabilities = []
+    #print(false_alarm_indices)
     
-    fom = 0
-    m = min(N + 1, len(probabilities))
-    #print(probabilities)
-    for i in range(0, m):
-        if i == N:
-            fom += a * probabilities[i]
+    for i in range(0, N + 1):
+        if i < len(false_alarm_indices):
+            i_th_false_alarm = false_alarm_indices[i]
+            tmp = gt_kw_occs[:i_th_false_alarm]
+            nb_hits = sum(tmp == keyword_label)
+            probabilities.append( nb_hits/nb_TP )
         else:
-            fom += probabilities[i]
-            
-    fom = (1/10*T) * fom 
+            nb_hits = sum(gt_kw_occs == keyword_label)
+            probabilities.append( nb_hits/nb_TP )
     
-    return hits, false_alarms, nb_TP, fom
+    #print(probabilities)
+    probabilities[-1] = a*probabilities[-1]
+    fom = (1/ (10*T))* sum(probabilities)
+
+    return hits, false_alarms, nb_TP, 100*fom
 
 
 
