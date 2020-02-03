@@ -3,19 +3,27 @@ We propose in what follows scripts used to detect a given set of keywords in con
 
 **Scripts**
 
-- __`evaluate.py`__ : script that evaluates the models and compute FOM results on test ted talks.
- 
-- __`losses.py`__ : script which contains custom loss and scoring functions (*focal loss*, *f1-score*...).
- 
-- __`models.py`__ : different models all CNN based (mainly *res-nets* and *deep CNN*).
- 
-- __`postprocessing.py`__ : contains functions used to perform post-processing (after training).
- 
 - __`preprocessing.py`__ : contains functions used to perform pre-processing (before training).
-  
-- __`train.py`__ : script which trains a model to spot arbitrary list of keywords. 
+
+- __`losses.py`__ : script which contains custom loss and scoring functions (*focal loss*, *f1-score*...).
+
+- __`models.py`__ : different models all CNN based (mainly *res-nets* and *deep CNN*).
+
+- __`postprocessing.py`__ : contains functions used to perform post-processing (after training).
 
 - __`scoring.py`__ : contains functions that cleans test data (removing music part, clapping, ..) and computes fom results 
+
+- __`train.py`__ : script which trains a model to spot arbitrary list of keywords. 
+    - *eg*: `python3 train.py -kw 'people' 'world' --model 'dnn' --path2kwdb 'TEDLIUM_release-3/data/1000_kws_db' -out 'kws/e2e_kws/'`
+    
+
+- __`evaluate.py`__ : script that evaluates the models and compute FOM results on test ted talks.
+    - *eg*: `python3 evaluate.py -kw 'people' 'world'  -p2m  'models/set1_models/dnn_set1_5_epochs.h5' -p2w '/TEDLIUM_release-3/data/wav' -p2j 'TEDLIUM_release-3/data/aligned_json' -p2ted '/test_data/test_ted_talks_50.npy'`
+
+
+ 
+ 
+
 
 **Folders**
 
