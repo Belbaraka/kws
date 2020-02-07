@@ -110,26 +110,26 @@ def fom_result(seg_preds, seg_scores, seg_gt, keyword_label, T, window_dur=1.0, 
     
     # Number of actual keywords test speech
     nb_TP = len(gt_kw_indexes)
+    if nb_TP == 0:
+        hits, false_alarms, fom = 0, 0, 0
     
-    false_alarm_indices = np.where((gt_kw_occs != keyword_label) & (gt_kw_occs != undefined_label) )[0]
-    false_alarms = len(false_alarm_indices)
+    else:
+        false_alarm_indices = np.where((gt_kw_occs != keyword_label) & (gt_kw_occs != undefined_label) )[0]
+        false_alarms = len(false_alarm_indices)
 
-    probabilities = []
-    #print(false_alarm_indices)
-    
-    for i in range(0, N + 1):
-        if i < len(false_alarm_indices):
-            i_th_false_alarm = false_alarm_indices[i]
-            tmp = gt_kw_occs[:i_th_false_alarm]
-            nb_hits = sum(tmp == keyword_label)
+        probabilities = []
+
+        for i in range(0, N + 1):
+            if i < len(false_alarm_indices):
+                i_th_false_alarm = false_alarm_indices[i]
+                tmp = gt_kw_occs[:i_th_false_alarm]
+                nb_hits = sum(tmp == keyword_label)
+            else:
+                nb_hits = sum(gt_kw_occs == keyword_label)
             probabilities.append( nb_hits/nb_TP )
-        else:
-            nb_hits = sum(gt_kw_occs == keyword_label)
-            probabilities.append( nb_hits/nb_TP )
-    
-    #print(probabilities)
-    probabilities[-1] = a*probabilities[-1]
-    fom = (1/ (10*T))* sum(probabilities)
+
+        probabilities[-1] = a*probabilities[-1]
+        fom = (1/ (10*T))* sum(probabilities)
 
     return hits, false_alarms, nb_TP, 100*fom
 

@@ -52,6 +52,7 @@ def res_net(nb_keywords, xdim=98, num_features=40):
 
 def dnn_model(nb_keywords, xdim=98, num_features=40):
     model = Sequential()
+    
     model.add(Conv2D(64, kernel_size=(3,3), activation='relu', input_shape=(xdim, num_features, 1), data_format='channels_last')) 
     model.add(BatchNormalization(axis=-1))
     model.add(AveragePooling2D(pool_size=(2, 2)))
@@ -64,16 +65,12 @@ def dnn_model(nb_keywords, xdim=98, num_features=40):
     model.add(BatchNormalization(axis=-1))
     model.add(AveragePooling2D(pool_size=(2, 2)))
     
-    #model.add(Conv2D(256, kernel_size=(5,5), activation='relu')) 
-    #model.add(BatchNormalization(axis=-1))
-    #model.add(AveragePooling2D(pool_size=(2, 2)))
-    
     model.add(Flatten())
-    model.add(Dense(units=32, activation='linear'))
+    model.add(Dense(units=128, activation='linear')) #32
     model.add(Dropout(rate=0.2))
-    model.add(Dense(units=32, activation='linear'))
+    model.add(Dense(units=128, activation='linear'))#32
     model.add(Dropout(rate=0.2))
-    model.add(Dense(units=128, activation='relu'))
+    model.add(Dense(units=256, activation='relu')) #128
     #model.add(Dropout(rate=0.2))
     model.add(Dense(units=nb_keywords + 1, activation='softmax'))
     # Compile model

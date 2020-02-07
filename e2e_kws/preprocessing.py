@@ -210,6 +210,49 @@ def generate_sets(filenames, keywords, frame_size=0.6, n_mfcc=40, validation_per
     
     return training, validation, testing
 
+def load_MFCCs(filenames, keywords, validation_percentage=10, testing_percentage=10):
+    """
+    Load MFCCs features used for training, validation and testing.
+
+    Args:
+    filenames: list of paths to the precomputed MFCCs of the keyword and non-keyword samples 
+    keywords: list of keywords
+    validation_percentage: percentage of data used for validation
+    testing_percentage: percentage of data used for testing
+    
+    Returns:
+    training, validation, testing: lists of features matrices and their respective label, each element in these lists is a tuple (feature_matrix, label)
+    """  
+    
+    non_keyword_label = len(keywords)
+
+    training, validation, testing = [], [], []
+
+    for filename in tqdm(filenames):
+        kw = filename.split('/')[-2]
+        
+        all_features = np.load(filename, allow_pickle=True)
+        
+        if kw in keywords:
+            label = keywords.index(kw)
+        else:
+            all_features = [all_features[0]]
+            label = non_keyword_label
+            
+        grp = which_set(filename, validation_percentage, testing_percentage)
+        
+        X_y = [(feats, label) for feats in all_features]
+        
+        if grp is 'training':
+            training.extend(X_y)
+        elif grp is 'validation' :
+            validation.extend(X_y)
+        else:
+            testing.extend(X_y)
+    
+    return training, validation, testing
+
+
 def get_X_y(grp, xdim, num_features=40):
     """
     Shapes the data (features matrices, labels) to the correct format.
@@ -225,4 +268,4 @@ def get_X_y(grp, xdim, num_features=40):
     """      
     X, y = zip(*grp)
     X = list(map(lambda x: x.reshape(xdim, num_features, 1), X))
-    return np.array(X, dtype=np.float32).reshape(-1, xdim, num_features, 1), np.array(y, dtype=np.float32).reshape(-1,1)
+    return np.array(X, dtype=np.float16).reshape(-1, xdim, num_features, 1), np.array(y, dtype=np.float16).reshape(-1,1)
