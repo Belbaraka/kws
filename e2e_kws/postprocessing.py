@@ -536,11 +536,15 @@ def segment_integration(y_prediction, y_prob, y_gt, non_keyword_label, segment_s
             segmented_groundTruth.append(undefined_label)
         
         # Merge predicted frames into segments
-        unique, counts = np.unique(y_pred_seg, return_counts=True)
-        if max(counts) > 2:
-            seg_label = unique[np.argmax(counts)]    
-        else:
-            seg_label = non_keyword_label
+        
+        #unique, counts = np.unique(y_pred_seg, return_counts=True)
+        #if max(counts) > 2:
+        #    seg_label = unique[np.argmax(counts)]    
+        #else:
+        #    seg_label = non_keyword_label
+        
+        counts = np.bincount(y_pred_seg)
+        seg_label = np.argmax(counts)
         segmented_predictions.append(seg_label)
         
         # Merge confidence scores by taking mean prob of assigned label

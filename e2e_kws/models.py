@@ -66,11 +66,11 @@ def dnn_model(nb_keywords, xdim=98, num_features=40):
     model.add(AveragePooling2D(pool_size=(2, 2)))
     
     model.add(Flatten())
-    model.add(Dense(units=128, activation='linear')) #32
+    model.add(Dense(units=32, activation='linear'))
     model.add(Dropout(rate=0.2))
-    model.add(Dense(units=128, activation='linear'))#32
+    model.add(Dense(units=32, activation='linear'))
     model.add(Dropout(rate=0.2))
-    model.add(Dense(units=256, activation='relu')) #128
+    model.add(Dense(units=128, activation='relu')) 
     #model.add(Dropout(rate=0.2))
     model.add(Dense(units=nb_keywords + 1, activation='softmax'))
     # Compile model
@@ -95,6 +95,34 @@ def cnn_parada(nb_keywords, xdim=98, num_features=40):
     # Compile model
     model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.0001), metrics=['accuracy'])
     return model
+
+
+def super_dnn_model(nb_keywords, xdim=98, num_features=40):
+    model = Sequential()
+    
+    model.add(Conv2D(64, kernel_size=(3,3), activation='relu', input_shape=(xdim, num_features, 1), data_format='channels_last')) 
+    model.add(BatchNormalization(axis=-1))
+    model.add(AveragePooling2D(pool_size=(2, 2)))
+    
+    model.add(Conv2D(128, kernel_size=(3,3), activation='relu')) 
+    model.add(BatchNormalization(axis=-1))
+    model.add(AveragePooling2D(pool_size=(2, 2)))
+    
+    model.add(Conv2D(256, kernel_size=(3,3), activation='relu')) 
+    model.add(BatchNormalization(axis=-1))
+    model.add(AveragePooling2D(pool_size=(2, 2)))
+    
+    model.add(Flatten())
+    model.add(Dense(units=128, activation='linear')) 
+    model.add(Dropout(rate=0.2))
+    model.add(Dense(units=128, activation='linear'))
+    model.add(Dropout(rate=0.2))
+    model.add(Dense(units=256, activation='relu')) 
+    model.add(Dense(units=nb_keywords + 1, activation='softmax'))
+    # Compile model
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.001), metrics=['accuracy'])
+    return model
+
 
 def baseline_dnn(nb_keywords, xdim=98, num_features=40):
     model = Sequential()
