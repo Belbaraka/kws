@@ -412,7 +412,7 @@ def extract_gt_vector(windows_indexes, path2json_TED_talk, keywords, fs, undefin
 
 
 
-def probability_smoothing(y_pred, w_smooth=30):
+def probability_smoothing(y_pred, w_smooth=30, verbose=0):
     """
     Smooth out the probabilities returned by the model. For each frame, the probability for a given label 
     is the average probabilities of the current and previous `w_smooth` frames for that label.
@@ -420,6 +420,7 @@ def probability_smoothing(y_pred, w_smooth=30):
     Args:
     y_pred: matrix of probabilities returned by the model
     w_smooth: number of previous windows to take into account
+    verbose: verbosity value
     
     Returns:
     y_pred_smoothed: smoothed version of the probability matrix y_pred.
@@ -427,7 +428,8 @@ def probability_smoothing(y_pred, w_smooth=30):
     
     rows, cols = y_pred.shape
     y_pred_smoothed = np.zeros((rows, cols))
-    for j in tqdm(range(rows)):
+
+    for j in (tqdm(range(rows)) if verbose else range(rows)):
         for i in range(cols):
             h_smooth = max(0, j - w_smooth)
             prev_prob = list(y_pred[h_smooth:(j+1),i])
@@ -437,21 +439,23 @@ def probability_smoothing(y_pred, w_smooth=30):
 
 
 
-def reduce_false_alarms(y_pred):
+def reduce_false_alarms(y_pred, verbose=0):
     """
     We should detect several times the keyword when sliding the window over its occurence. Thus predicting a single or 2 keyword label on consecutive sliding frames
     would suggest having a false alarm. When having such scenarios, we assign the non_keyword label to it.    
     
     Args:
     y_pred: matrix of probabilities returned by the model
-    
+    verbose: verbosity value
+
     Returns:
     y_pred_modified: modified version of the probability matrix y_pred.
     """   
     rows, cols = y_pred.shape
     y_pred_modified = y_pred.copy()
     non_keyword_label = cols - 1
-    for i in tqdm(range(1, rows - 1)):
+    
+    for i in (tqdm(range(1, rows - 1)) if verbose else range(1, rows - 1)):
         for j in range(cols):
             
             # Case 1: predicting single keyword label on consecutive frames
