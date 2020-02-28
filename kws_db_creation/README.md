@@ -9,4 +9,3 @@ The keyword database is constructed as follows:
 2. From these json files we get the *positions* of the keyword in the audio file
 3. Each occurence of the keyword in the audio file is extracted and saved as a `.wav` file.
 
-[TODO : Tutorial of how to use the scripts to create the keyword spotting database]('')
