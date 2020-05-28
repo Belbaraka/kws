@@ -1,5 +1,5 @@
 ## Folder's structure
-We propose in what follows scripts used to detect a given set of keywords in continuous speech. For more details, please refer to the [wiki page](https://gitlab.com/SpeechMasterStudents/kws/-/wikis/home)
+We propose in what follows scripts used to detect a given set of keywords in continuous speech.
 
 **Scripts**
 
