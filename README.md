@@ -13,5 +13,5 @@ Code repo for the **Master Thesis** : *End-2-End continuous speech keyword spott
 
 
 **Author** <br>
-Ali Belbaraka (contact : ali.belbaraka@gmail.com)
+Ali Belbaraka 
  
